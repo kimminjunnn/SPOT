@@ -303,15 +303,15 @@ export default function PlaceDetailScreen() {
           />
         </View>
 
-        <View style={styles.commentSectionHeader}>
+        {/* <View style={styles.commentSectionHeader}>
           <Text style={styles.commentText}>코멘트</Text>
           <Text style={styles.commentCount}> {comments.length}</Text>
         </View>
-        <CommentCard commentList={comments} />
+        <CommentCard commentList={comments} /> */}
       </ScrollView>
 
-      <CommentWriteButton onPress={handleOpenCommentSheet} />
-      <CommentWriteModal ref={commentModalRef} placeId={Number(placeId)} />
+      {/* <CommentWriteButton onPress={handleOpenCommentSheet} />
+      <CommentWriteModal ref={commentModalRef} placeId={Number(placeId)} /> */}
     </View>
   );
 }
