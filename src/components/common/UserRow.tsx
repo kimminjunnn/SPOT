@@ -11,6 +11,7 @@ type UserRowProps = {
   avatarUri?: string | null;
   actionLabel: string;
   actionDisabled?: boolean;
+  actionVisuallyDisabled?: boolean;
   onPressAction?: () => void;
   onPressRow?: () => void;
 };
@@ -24,6 +25,7 @@ export default function UserRow({
   avatarUri,
   actionLabel,
   actionDisabled,
+  actionVisuallyDisabled,
   onPressAction,
   onPressRow,
 }: UserRowProps) {
@@ -60,6 +62,7 @@ export default function UserRow({
           variant="primary"
           size="small"
           disabled={actionDisabled}
+          visuallyDisabled={actionVisuallyDisabled}
           onPress={onPressAction}
         />
       </View>

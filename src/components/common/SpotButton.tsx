@@ -25,6 +25,7 @@ type SpotButtonProps = {
   fullWidth?: boolean;
   style?: StyleProp<ViewStyle>;
   disabled?: boolean;
+  visuallyDisabled?: boolean;
 };
 
 export default function SpotButton({
@@ -35,9 +36,10 @@ export default function SpotButton({
   fullWidth = false,
   style,
   disabled = false,
+  visuallyDisabled = false,
 }: SpotButtonProps) {
-  // disabled면 내부 variant를 강제로 교체
-  const resolvedVariant: InternalVariant = disabled
+  // disabled 또는 시각적 비활성 상태면 내부 variant를 교체
+  const resolvedVariant: InternalVariant = disabled || visuallyDisabled
     ? variant === "secondary"
       ? "disabled-secondary"
       : "disabled"
