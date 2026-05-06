@@ -18,6 +18,7 @@ export type HomeScope =
 
 export type HomePlaceItem = {
   id: number;
+  placeId?: number;
   gid: string;
   photos: string[];
   name: string;

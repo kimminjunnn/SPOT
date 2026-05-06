@@ -13,6 +13,8 @@ import OptionModal from "../common/OptionModal";
 
 import { type HomePlaceItem } from "./types";
 import { useSearchStore } from "@/src/stores/useSearchStore";
+import { calculateDistanceMeters, isValidCoordinate } from "@/src/utils/distance";
+import { formatDistance } from "@/src/utils/format";
 
 const SORT_OPTIONS = [
   { label: "최신순", value: "latest" },
@@ -32,6 +34,7 @@ const CATEGORY_OPTIONS = [
 
 type PlaceTabSectionProps = {
   placeList: HomePlaceItem[];
+  currentCoords?: { lat: number; lng: number } | null;
   onScrollDirection?: (direction: "up" | "down") => void;
 };
 
@@ -52,6 +55,7 @@ const BOTTOM_BOUNCE_UP_IGNORE_THRESHOLD = 20;
 
 export const PlaceTabSection = ({
   placeList,
+  currentCoords,
   onScrollDirection,
 }: PlaceTabSectionProps) => {
   const [category, setCategory] = useState<string[]>([]);
@@ -81,11 +85,15 @@ export const PlaceTabSection = ({
     }
 
     if (sort[0] === "distance") {
-      next.sort((a, b) => (a.distance ?? Infinity) - (b.distance ?? Infinity));
+      next.sort(
+        (a, b) =>
+          getDisplayDistanceM(a, currentCoords) -
+          getDisplayDistanceM(b, currentCoords),
+      );
     }
 
     return next;
-  }, [placeList, category, sort]);
+  }, [placeList, category, sort, currentCoords]);
 
   const handleScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const { contentOffset, layoutMeasurement, contentSize } = e.nativeEvent;
@@ -144,7 +152,7 @@ export const PlaceTabSection = ({
         onScroll={handleScroll}
         scrollEventThrottle={16}
       >
-        {visiblePlaceList.map((p) => {
+        {visiblePlaceList.map((p, index) => {
           const imgs =
             Array.isArray(p.photos) && p.photos.length > 0
               ? p.photos.map((u) => ({ uri: u }))
@@ -155,9 +163,12 @@ export const PlaceTabSection = ({
               ? p.memPhotos.slice(0, 3).map((u) => ({ uri: u }))
               : undefined;
 
+          const placeId = getPlaceId(p);
+          const displayDistanceM = getDisplayDistanceM(p, currentCoords);
+
           return (
             <PlaceCard
-              key={String(p.id)}
+              key={getPlaceCardKey(p, index)}
               name={p.name}
               category={p.list}
               address={p.address}
@@ -170,23 +181,23 @@ export const PlaceTabSection = ({
               showBookmark={true}
               isBookmarked={p.marked}
               distanceText={
-                typeof p.distance === "number"
-                  ? p.distance >= 1000
-                    ? `${(p.distance / 1000).toFixed(1)}km`
-                    : `${Math.round(p.distance)}m`
+                Number.isFinite(displayDistanceM)
+                  ? formatDistance(displayDistanceM)
                   : undefined
               }
-              onToggleBookmark={() => toggleBookmark(p.id)}
-              onPress={() =>
+              onToggleBookmark={() => toggleBookmark(placeId)}
+              onPress={() => {
+                if (placeId == null) return;
+
                 router.push({
                   pathname: "/place/[placeId]",
                   params: {
-                    placeId: String(p.id),
+                    placeId: String(placeId),
                     lat: p.lat,
                     lng: p.lng,
                   },
-                })
-              }
+                });
+              }}
             />
           );
         })}
@@ -212,3 +223,55 @@ export const PlaceTabSection = ({
     </View>
   );
 };
+
+function getDisplayDistanceM(
+  place: HomePlaceItem,
+  currentCoords?: { lat: number; lng: number } | null,
+) {
+  const currentLat = currentCoords?.lat;
+  const currentLng = currentCoords?.lng;
+
+  if (
+    typeof currentLat === "number" &&
+    typeof currentLng === "number" &&
+    isValidCoordinate(currentLat, currentLng) &&
+    isValidCoordinate(place.lat, place.lng)
+  ) {
+    return calculateDistanceMeters(
+      currentLat,
+      currentLng,
+      place.lat,
+      place.lng,
+    );
+  }
+
+  return typeof place.distance === "number" && Number.isFinite(place.distance)
+    ? place.distance
+    : Infinity;
+}
+
+function getPlaceId(place: HomePlaceItem) {
+  if (typeof place.placeId === "number" && Number.isFinite(place.placeId)) {
+    return place.placeId;
+  }
+
+  if (typeof place.id === "number" && Number.isFinite(place.id)) {
+    return place.id;
+  }
+
+  return null;
+}
+
+function getPlaceCardKey(place: HomePlaceItem, index: number) {
+  const placeId = getPlaceId(place);
+
+  if (placeId != null) {
+    return `place-${placeId}`;
+  }
+
+  if (place.gid) {
+    return `gid-${place.gid}`;
+  }
+
+  return `place-fallback-${index}`;
+}

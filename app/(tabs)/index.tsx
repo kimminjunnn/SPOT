@@ -407,6 +407,7 @@ export default function Home() {
           {activeTab === "place" && (
             <PlaceTabSection
               placeList={placeList}
+              currentCoords={coords}
               onScrollDirection={handleScrollDirection}
             />
           )}
