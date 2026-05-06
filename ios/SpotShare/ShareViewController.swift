@@ -243,8 +243,8 @@ final class ShareViewController: UIViewController {
     }
 
     let config = URLSessionConfiguration.default
-    config.timeoutIntervalForRequest = 35
-    config.timeoutIntervalForResource = 35
+    config.timeoutIntervalForRequest = 100
+    config.timeoutIntervalForResource = 100
     let session = URLSession(configuration: config)
 
     var request = URLRequest(url: reqURL)
