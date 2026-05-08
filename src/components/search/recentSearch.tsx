@@ -18,7 +18,7 @@ type Props = {
   items: RecentItem[];
   loading?: boolean;
   onTapKeyword: (keyword: string) => void;
-  onRemoveKeyword?: (id: string) => void;
+  onRemoveKeyword?: (keyword: string, id: string) => void;
 };
 
 export default function RecentSearch({
@@ -64,7 +64,7 @@ export default function RecentSearch({
 
             {onRemoveKeyword && (
               <Pressable
-                onPress={() => onRemoveKeyword(item.keyword)}
+                onPress={() => onRemoveKeyword(item.keyword, item.id)}
                 hitSlop={8}
                 style={styles.removeBtn}
               >

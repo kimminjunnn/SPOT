@@ -13,11 +13,11 @@ import { router } from "expo-router";
 import { Colors } from "@/src/styles/Colors";
 import { TextStyles } from "@/src/styles/TextStyles";
 import { useLocationStore } from "@/src/stores/useLocationStore";
-import { api8080 } from "@/src/lib/api/client";
 import RecentSearch from "@/src/components/search/recentSearch";
 import SearchResult from "@/src/components/search/searchResult";
 import { useSearchStore } from "@/src/stores/useSearchStore";
 import { useRecentSearchStore } from "@/src/stores/useRecentSearchStore";
+import { fetchSearch } from "@/src/lib/api/search";
 import type { SearchItem, SearchPayload } from "@/src/types/search";
 
 export type RecentItem = {
@@ -39,6 +39,7 @@ export default function SearchPlaceScreen() {
   const recent = useRecentSearchStore((s) => s.items);
   const recentLoading = useRecentSearchStore((s) => s.loading);
   const fetchRecent = useRecentSearchStore((s) => s.fetch);
+  const addRecent = useRecentSearchStore((s) => s.add);
   const removeRecent = useRecentSearchStore((s) => s.remove);
 
   // 마운트 시 한 번 로드
@@ -94,13 +95,10 @@ export default function SearchPlaceScreen() {
             lng: latestCoords.lng,
           };
 
-          const res = await api8080.get<SearchItem[]>("/search", {
-            params,
-            signal: controller.signal,
-          });
+          const data = await fetchSearch(params, { signal: controller.signal });
 
           if (seq !== reqSeqRef.current) return;
-          setResults(res.data ?? []);
+          setResults(data);
         }
       } catch (err: any) {
         if (err?.name === "CanceledError" || err?.code === "ERR_CANCELED") {
@@ -134,10 +132,11 @@ export default function SearchPlaceScreen() {
     (keywordRaw?: string) => {
       const keyword = (keywordRaw ?? searchInputText).trim();
       if (!keyword) return;
+      void addRecent(keyword);
       submit(keyword);
       router.replace("/map"); // 홈으로 복귀 → 홈에서 API 호출/시트 렌더
     },
-    [searchInputText, submit],
+    [addRecent, searchInputText, submit],
   );
 
   return (
@@ -190,7 +189,7 @@ export default function SearchPlaceScreen() {
             items={recent}
             loading={recentLoading}
             onTapKeyword={(k) => setSearchInputText(k)}
-            onRemoveKeyword={(id) => removeRecent(id)}
+            onRemoveKeyword={(keyword, id) => removeRecent(keyword, id)}
           />
         )}
 
@@ -202,6 +201,8 @@ export default function SearchPlaceScreen() {
           <SearchResult
             data={results!}
             onPressItem={(place) => {
+              void addRecent(place.name);
+
               // ✅ 상세 조회 요청 신호 남기기 (스토어에 pendingDetailGid 저장)
               requestDetail(place.gid);
 

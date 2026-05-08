@@ -412,13 +412,13 @@ export default function Home() {
             />
           )}
 
-          {activeTab === "comment" && (
+          {/* {activeTab === "comment" && (
             <CommentTabSection
               scope={scope}
               commentList={commentList}
               onScrollDirection={handleScrollDirection}
             />
-          )}
+          )} */}
         </View>
       </View>
 

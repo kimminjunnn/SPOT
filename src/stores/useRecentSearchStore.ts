@@ -1,6 +1,11 @@
 // src/stores/useRecentSearchStore.ts
 import { create } from "zustand";
-import client from "@/src/lib/api/client";
+import {
+  createRecentSearch,
+  deleteRecentSearch,
+  fetchRecentSearches,
+  type RecentSearchResponseItem,
+} from "@/src/lib/api/recentSearch";
 
 export type RecentItem = { id: string; keyword: string };
 
@@ -21,7 +26,7 @@ type Actions = {
 const genId = (prefix = "gen") =>
   `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
-const normalize = (it: any): RecentItem | null => {
+const normalize = (it: RecentSearchResponseItem): RecentItem | null => {
   const keyword = String(it?.keyword ?? it?.term ?? it?.q ?? "").trim();
   if (!keyword) return null;
   const idRaw = it?.id ?? it?.rid ?? it?.recentId;
@@ -43,8 +48,8 @@ export const useRecentSearchStore = create<State & Actions>((set, get) => ({
     set({ loading: true, error: null, _abort: controller });
 
     try {
-      const res = await client.get("/recent", { signal: controller.signal });
-      const list = (Array.isArray(res.data) ? res.data : [])
+      const data = await fetchRecentSearches({ signal: controller.signal });
+      const list = data
         .map(normalize)
         .filter(Boolean) as RecentItem[];
       set({ items: list });
@@ -66,8 +71,8 @@ export const useRecentSearchStore = create<State & Actions>((set, get) => ({
     set({ items: [optimistic, ...items] });
 
     try {
-      const res = await client.post("/recent", { keyword });
-      const created = normalize(res.data) ?? { id: genId("srv"), keyword };
+      const data = await createRecentSearch(keyword);
+      const created = normalize(data) ?? { id: genId("srv"), keyword };
       set((s) => ({
         items: s.items.map((it) => (it.id === tempId ? created : it)),
       }));
@@ -95,9 +100,8 @@ export const useRecentSearchStore = create<State & Actions>((set, get) => ({
 
     try {
       // 서버는 keyword 기준으로 처리 → 동일 키워드 여러 개를 지울 수도 있음(서버 정책)
-      const encoded = encodeURIComponent(keyword);
-      await client.delete(`/recent/${encoded}`);
-    } catch (e: any) {
+      await deleteRecentSearch(keyword);
+    } catch {
       // 실패 시 롤백
       set({ items: backup });
     }
