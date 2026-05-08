@@ -23,11 +23,12 @@ export type HomeMainResponse = {
 };
 
 export type HomeUserPlace = {
-  placeId: string;
-  photo: string;
-  num: number;
-  lat: number;
-  lng: number;
+  placeId: number;
+  name: string;
+  latitude: number;
+  longitude: number;
+  distance: number;
+  list?: string | null;
 };
 
 export type HomeUserResponse = {
@@ -66,9 +67,10 @@ export async function fetchHomeUser(params: {
   distance: number;
 }) {
   const { userId, ...rest } = params;
-  const res = await api8001.get<HomeUserResponse>(`/main/home/${userId}`, {
+  const res = await api8001.get<HomeUserPlace[]>(`/main/home/${userId}`, {
     params: rest,
   });
+  console.log(res.data);
   return res.data;
 }
 
@@ -94,6 +96,7 @@ export async function fetchHomePlacesMain(params: {
 // /main/me/places  (여기만 s)
 export async function fetchHomePlacesMe(params: { lat: number; lng: number }) {
   const res = await api8001.get<HomePlaceItem[]>("/main/me/places", { params });
+  console.log(res);
   return res.data;
 }
 
@@ -104,7 +107,7 @@ export async function fetchHomePlacesUser(params: {
   lng: number;
 }) {
   const { userId, ...rest } = params;
-  const res = await api8080.get<HomePlaceItem[]>(`/main/places/${userId}`, {
+  const res = await api8001.get<HomePlaceItem[]>(`/main/places/${userId}`, {
     params: rest,
   });
   return res.data;

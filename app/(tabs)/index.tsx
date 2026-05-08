@@ -148,6 +148,41 @@ export default function Home() {
           return `${prefix}-${String(id)}`;
         };
 
+        const getHomePlaces = (data: any) =>
+          Array.isArray(data) ? data : (data?.places ?? []);
+
+        const toMarker = (
+          prefix: string,
+          p: any,
+          idx: number,
+        ): HomeMarker | null => {
+          const markerLat = Number(p?.lat ?? p?.latitude);
+          const markerLng = Number(p?.lng ?? p?.longitude);
+
+          if (!Number.isFinite(markerLat) || !Number.isFinite(markerLng)) {
+            return null;
+          }
+
+          return {
+            key: toMarkerKey(prefix, p, idx),
+            lat: markerLat,
+            lng: markerLng,
+            imageUrl: p?.photo ?? p?.imageUrl,
+            raw: p,
+          };
+        };
+
+        const toFriendMarker = (
+          p: Awaited<ReturnType<typeof fetchHomeUser>>[number],
+          idx: number,
+          userId: number,
+        ): HomeMarker => ({
+          key: toMarkerKey(`friend-${userId}`, p, idx),
+          lat: p.latitude,
+          lng: p.longitude,
+          raw: p,
+        });
+
         if (scope.type === "friends") {
           const data = await fetchHomeMain({
             lat,
@@ -156,13 +191,12 @@ export default function Home() {
           });
           if (cancelled) return;
 
-          const next: HomeMarker[] = (data.places ?? []).map((p: any, idx) => ({
-            key: toMarkerKey("main", p, idx),
-            lat: p.lat,
-            lng: p.lng,
-            imageUrl: p.photo,
-            raw: p,
-          }));
+          const next: HomeMarker[] = getHomePlaces(data)
+            .map((p: any, idx: number) => toMarker("main", p, idx))
+            .filter(
+              (marker: HomeMarker | null): marker is HomeMarker =>
+                marker != null,
+            );
 
           setMarkers(next);
           return;
@@ -172,13 +206,12 @@ export default function Home() {
           const data = await fetchHomeMe({ lat, lng, distance: HOME_DISTANCE });
           if (cancelled) return;
 
-          const next: HomeMarker[] = (data.places ?? []).map((p: any, idx) => ({
-            key: toMarkerKey("me", p, idx),
-            lat: p.lat,
-            lng: p.lng,
-            imageUrl: p.photo,
-            raw: p,
-          }));
+          const next: HomeMarker[] = getHomePlaces(data)
+            .map((p: any, idx: number) => toMarker("me", p, idx))
+            .filter(
+              (marker: HomeMarker | null): marker is HomeMarker =>
+                marker != null,
+            );
 
           setMarkers(next);
           return;
@@ -189,17 +222,12 @@ export default function Home() {
           lat,
           lng,
           distance: HOME_DISTANCE,
-          includeMarkerBadgeLayout: true,
         });
         if (cancelled) return;
 
-        const next: HomeMarker[] = (data.places ?? []).map((p: any, idx) => ({
-          key: toMarkerKey(`friend-${scope.userId}`, p, idx),
-          lat: p.lat,
-          lng: p.lng,
-          imageUrl: p.photo,
-          raw: p,
-        }));
+        const next: HomeMarker[] = data.map((p, idx) =>
+          toFriendMarker(p, idx, scope.userId),
+        );
 
         setMarkers(next);
       } catch (e: any) {
