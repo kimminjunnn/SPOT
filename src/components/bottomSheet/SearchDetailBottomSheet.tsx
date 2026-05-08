@@ -8,6 +8,7 @@ import { useSearchStore } from "@/src/stores/useSearchStore";
 import { Colors } from "@/src/styles/Colors";
 import PlaceCard from "@/src/components/common/PlaceCard";
 import { formatDistance } from "@/src/utils/format"; // ✅ 공통 util 사용
+import { getPlaceCardSaverProps } from "@/src/lib/mappers/placeCardSavers";
 
 type Props = { onClose: () => void };
 
@@ -27,10 +28,10 @@ export default function SearchDetailBottomSheet({ onClose }: Props) {
     return arr.slice(0, 5).map((uri) => ({ uri }));
   }, [focused]);
 
-  const savedUsers = useMemo(() => {
-    if (!focused?.savers) return [];
-    return focused.savers.slice(0, 6).map((s) => ({ uri: s.profileImageUrl }));
-  }, [focused]);
+  const saverProps = useMemo(
+    () => getPlaceCardSaverProps(focused ?? {}),
+    [focused],
+  );
 
   const distanceText = useMemo(() => {
     if (!focused?.distanceM) return undefined;
@@ -70,7 +71,6 @@ export default function SearchDetailBottomSheet({ onClose }: Props) {
   } = focused;
 
   const categoryLabel = category ?? "";
-  const savedCount = focused.savers?.length ?? 0;
 
   return (
     <BottomSheet
@@ -92,8 +92,8 @@ export default function SearchDetailBottomSheet({ onClose }: Props) {
           category={categoryLabel}
           address={address ?? ""}
           images={images}
-          savedUsers={savedUsers}
-          savedCount={savedCount}
+          savedUsers={saverProps.savedUsers}
+          savedCount={saverProps.savedCount}
           showDirectionButton={true}
           rating={ratingAvg ?? undefined}
           reviewCount={ratingCount ?? undefined}

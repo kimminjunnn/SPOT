@@ -4,6 +4,7 @@ import {
   Text,
   StyleSheet,
   Image,
+  ImageSourcePropType,
   ScrollView,
   Pressable,
   Modal,
@@ -12,13 +13,14 @@ import { TextStyles } from "@/src/styles/TextStyles";
 import { Colors } from "@/src/styles/Colors";
 
 import { openNaverMap } from "@/src/utils/openNaverMap";
+import type { PlaceCardSavedUser } from "@/src/lib/mappers/placeCardSavers";
 
 interface PlaceCardProps {
   name: string;
   category: string;
   address: string;
   images: any[]; // require로 넣으니까 any로!
-  savedUsers?: any[]; // 아바타도 마찬가지
+  savedUsers?: PlaceCardSavedUser[];
   savedCount?: number;
   showDirectionButton: boolean;
   rating?: number;
@@ -29,6 +31,35 @@ interface PlaceCardProps {
   onToggleBookmark?: () => void;
   onPress?: () => void;
 }
+
+const DEFAULT_PROFILE_IMAGE = require("@/assets/images/default-profile.png");
+
+const normalizeProfileImageUrl = (uri: string | null | undefined) => {
+  if (!uri) return null;
+  if (uri.startsWith("http://") || uri.startsWith("https://")) return uri;
+
+  const baseUrl = process.env.EXPO_PUBLIC_API_BASE_URL_8000 ?? "";
+  return baseUrl ? `${baseUrl}${uri}` : null;
+};
+
+const getSavedUserImageSource = (
+  savedUser: PlaceCardSavedUser,
+): ImageSourcePropType => {
+  if (typeof savedUser === "number") return savedUser;
+  if (Array.isArray(savedUser)) return savedUser;
+
+  if ("profileImageUrl" in savedUser) {
+    const uri = normalizeProfileImageUrl(savedUser.profileImageUrl);
+    return uri ? { uri } : DEFAULT_PROFILE_IMAGE;
+  }
+
+  if ("uri" in savedUser && typeof savedUser.uri === "string") {
+    const uri = normalizeProfileImageUrl(savedUser.uri);
+    return uri ? { uri } : DEFAULT_PROFILE_IMAGE;
+  }
+
+  return DEFAULT_PROFILE_IMAGE;
+};
 
 export default function PlaceCard({
   name,
@@ -58,6 +89,12 @@ export default function PlaceCard({
     await openNaverMap(name);
     console.log("clicked");
   };
+
+  const savedUserImages = (savedUsers ?? [])
+    .slice(0, 3)
+    .map(getSavedUserImageSource);
+  const actualSavedCount = savedCount ?? savedUsers?.length ?? 0;
+
   return (
     <Pressable style={styles.card} onPress={onPress}>
       <View style={styles.header}>
@@ -143,23 +180,17 @@ export default function PlaceCard({
       {/* 저장한 사람들 + 네이버 지도 버튼 */}
       <View style={styles.bottomRow}>
         <View style={styles.savedInfo}>
-          {savedUsers && savedUsers.length > 0 && savedCount !== undefined && (
+          {actualSavedCount > 0 && (
             <View style={styles.avatarGroup}>
-              {savedUsers.map((img, i) => (
+              {savedUserImages.map((source, i) => (
                 <Image
                   key={i}
-                  source={img}
+                  source={source}
                   style={[styles.avatar, { marginLeft: i === 0 ? 0 : -8 }]}
                 />
               ))}
-              <Text
-                style={[
-                  TextStyles.Regular12,
-                  { color: Colors.gray_600 },
-                  { marginLeft: 2 },
-                ]}
-              >
-                {savedCount}명이 저장했어요
+              <Text style={styles.savedText}>
+                {actualSavedCount}명이 저장했어요
               </Text>
             </View>
           )}
@@ -278,6 +309,7 @@ const styles = StyleSheet.create({
   },
   avatarGroup: {
     flexDirection: "row",
+    alignItems: "center",
     marginRight: 6,
   },
   avatar: {
@@ -286,9 +318,12 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 0.74,
     borderColor: "#ffffff",
+    backgroundColor: "lightgray",
   },
   savedText: {
-    color: "#333",
+    ...TextStyles.Regular12,
+    color: Colors.gray_600,
+    marginLeft: 4,
   },
   NaverMapButton: {
     flexDirection: "row",

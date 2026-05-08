@@ -27,6 +27,11 @@ export type HomePlaceItem = {
   ratingCount: number;
   list: string; // restaurant | cafe | ...
   savedCount: number;
+  savers?: {
+    nickname: string;
+    profileImageUrl: string | null;
+  }[];
+  saversCount?: number;
   searchCount: number;
   score: number;
   distance: number;

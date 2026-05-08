@@ -17,6 +17,7 @@ import { useSearchStore } from "@/src/stores/useSearchStore";
 import { Colors } from "@/src/styles/Colors";
 import { TextStyles } from "@/src/styles/TextStyles";
 import PlaceCard from "@/src/components/common/PlaceCard";
+import { getPlaceCardSaverProps } from "@/src/lib/mappers/placeCardSavers";
 
 type Props = {
   onClose: () => void; // 검색 모드 종료(Places 시트로 복귀)
@@ -129,13 +130,7 @@ export default function SearchDetailsBottomSheet({
               : p.photo
                 ? [{ uri: p.photo }]
                 : [];
-          const savedUsers =
-            p.savers && p.savers.length > 0
-              ? p.savers
-                  .slice(0, 3)
-                  .map((s: any) => ({ uri: s.profileImageUrl }))
-              : [];
-          const savedCount = p.savers ? p.savers.length : 0;
+          const saverProps = getPlaceCardSaverProps(p);
 
           return (
             <Pressable
@@ -151,8 +146,8 @@ export default function SearchDetailsBottomSheet({
                 category={category}
                 address={p.address ?? ""}
                 images={images}
-                savedUsers={savedUsers}
-                savedCount={savedCount}
+                savedUsers={saverProps.savedUsers}
+                savedCount={saverProps.savedCount}
                 showDirectionButton={true}
                 rating={p.ratingAvg ?? undefined}
                 reviewCount={p.ratingCount ?? undefined}

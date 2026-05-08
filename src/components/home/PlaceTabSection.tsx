@@ -15,6 +15,7 @@ import { type HomePlaceItem } from "./types";
 import { useSearchStore } from "@/src/stores/useSearchStore";
 import { calculateDistanceMeters, isValidCoordinate } from "@/src/utils/distance";
 import { formatDistance } from "@/src/utils/format";
+import { getPlaceCardSaverProps } from "@/src/lib/mappers/placeCardSavers";
 
 const SORT_OPTIONS = [
   { label: "최신순", value: "latest" },
@@ -158,10 +159,7 @@ export const PlaceTabSection = ({
               ? p.photos.map((u) => ({ uri: u }))
               : dummyCardFallbackImgs;
 
-          const savedUsers =
-            Array.isArray(p.memPhotos) && p.memPhotos.length > 0
-              ? p.memPhotos.slice(0, 3).map((u) => ({ uri: u }))
-              : undefined;
+          const saverProps = getPlaceCardSaverProps(p);
 
           const placeId = getPlaceId(p);
           const displayDistanceM = getDisplayDistanceM(p, currentCoords);
@@ -173,8 +171,8 @@ export const PlaceTabSection = ({
               category={p.list}
               address={p.address}
               images={imgs as any[]}
-              savedUsers={savedUsers as any[]}
-              savedCount={p.savedCount}
+              savedUsers={saverProps.savedUsers}
+              savedCount={saverProps.savedCount}
               showDirectionButton={true}
               rating={p.rating}
               reviewCount={p.ratingCount}

@@ -17,6 +17,7 @@ import { formatDistance } from "@/src/utils/format";
 
 import { toggleBookmarkApi } from "@/src/lib/api/bookmark";
 import { useHotPlacesStore } from "@/src/stores/useHotPlacesStore";
+import { getPlaceCardSaverProps } from "@/src/lib/mappers/placeCardSavers";
 
 export default function HotPlacesTab() {
   const { handlePressPlaceCard } = usePlaceMoreNavigation();
@@ -188,31 +189,35 @@ export default function HotPlacesTab() {
         )}
 
         {/* 리스트 */}
-        {filteredItems.map((p) => (
-          <PlaceCard
-            key={p.id}
-            name={p.name}
-            category={p.category ?? ""}
-            address={p.address}
-            images={
-              p.thumbnails.length > 0
-                ? p.thumbnails.map((u) => ({ uri: u }))
-                : [require("@/assets/images/default-place.png")]
-            }
-            savedUsers={p.savers}
-            savedCount={p.savers.length}
-            showDirectionButton={true}
-            rating={p.ratingAvg ?? 0}
-            reviewCount={p.ratingCount ?? 0}
-            showBookmark={true}
-            isBookmarked={p.isBookmarked}
-            onToggleBookmark={() => handleToggleBookmark(p)}
-            distanceText={
-              p.distanceM != null ? formatDistance(p.distanceM) : undefined
-            }
-            onPress={() => handlePressPlaceCard(p)}
-          />
-        ))}
+        {filteredItems.map((p) => {
+          const saverProps = getPlaceCardSaverProps(p);
+
+          return (
+            <PlaceCard
+              key={p.id}
+              name={p.name}
+              category={p.category ?? ""}
+              address={p.address}
+              images={
+                p.thumbnails.length > 0
+                  ? p.thumbnails.map((u) => ({ uri: u }))
+                  : [require("@/assets/images/default-place.png")]
+              }
+              savedUsers={saverProps.savedUsers}
+              savedCount={saverProps.savedCount}
+              showDirectionButton={true}
+              rating={p.ratingAvg ?? 0}
+              reviewCount={p.ratingCount ?? 0}
+              showBookmark={true}
+              isBookmarked={p.isBookmarked}
+              onToggleBookmark={() => handleToggleBookmark(p)}
+              distanceText={
+                p.distanceM != null ? formatDistance(p.distanceM) : undefined
+              }
+              onPress={() => handlePressPlaceCard(p)}
+            />
+          );
+        })}
       </BottomSheetScrollView>
 
       {/* 모달 */}
