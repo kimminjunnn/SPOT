@@ -39,6 +39,7 @@ import { usePlaceMoreStore } from "@/src/stores/usePlaceMoreStore";
 
 import { openNaverMap } from "@/src/utils/openNaverMap";
 import { CommentCard } from "@/src/components/comment/CommentCard";
+import SavedInfoCard from "@/src/components/place/SavedInfoCard";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
@@ -296,12 +297,7 @@ export default function PlaceDetailScreen() {
           onPress={handleOpenNaverMap}
         />
 
-        <View style={styles.savedInfo}>
-          <Image
-            source={require("@/assets/images/example3.png")}
-            style={{ width: 343, height: 64 }}
-          />
-        </View>
+        <SavedInfoCard savers={display.savers} />
 
         {/* <View style={styles.commentSectionHeader}>
           <Text style={styles.commentText}>코멘트</Text>
@@ -359,12 +355,6 @@ const styles = StyleSheet.create({
   mapFallback: {
     flex: 1,
     justifyContent: "center",
-    alignItems: "center",
-  },
-  savedInfo: {
-    marginTop: 16,
-    borderColor: "#eee",
-    marginBottom: 30,
     alignItems: "center",
   },
   commentSectionHeader: {

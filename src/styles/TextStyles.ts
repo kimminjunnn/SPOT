@@ -50,6 +50,14 @@ export const TextStyles = {
     fontSize: 12,
     lineHeight: 12 * 1.3,
   },
+
+  SemiBold12: {
+    ...base,
+    fontFamily: "PretendardSemiBold",
+    fontSize: 12,
+    lineHeight: 20 * 1.3,
+  },
+
   SemiBold14: {
     ...base,
     fontFamily: "PretendardSemiBold",
