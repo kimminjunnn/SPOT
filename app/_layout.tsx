@@ -165,14 +165,6 @@ export default function RootLayout() {
           <Stack.Screen name="oauth/kakao" options={{ headerShown: false }} />
 
           <Stack.Screen
-            name="search"
-            options={{
-              headerShown: false,
-              animation: "none",
-            }}
-          />
-
-          <Stack.Screen
             name="profile/notifications"
             options={{ headerShown: false }}
           />
