@@ -1,4 +1,5 @@
 // src/lib/mappers/placeMapper.ts
+import type { HomePlaceItem } from "@/src/components/home/types";
 import type { ApiPlace, Place } from "@/src/types/place";
 import { getCategoryLabel } from "@/src/utils/categoryLabel";
 import { calculateDistanceMeters } from "@/src/utils/distance";
@@ -74,6 +75,77 @@ export function mapApiPlacesToPlaces(
 ): Place[] {
   return data.map((it, idx) =>
     mapApiPlaceToPlace(it, {
+      ...options,
+      fallbackGid: options.fallbackGid ?? String(idx),
+    }),
+  );
+}
+
+export function mapHomePlaceItemToPlace(
+  it: HomePlaceItem,
+  options: MapOptions = {},
+): Place {
+  const { currentLat, currentLng, fallbackGid } = options;
+
+  const lat = Number(it.lat);
+  const lng = Number(it.lng);
+
+  const distanceM =
+    currentLat != null && currentLng != null && isFinite(lat) && isFinite(lng)
+      ? calculateDistanceMeters(currentLat, currentLng, lat, lng)
+      : undefined;
+
+  const placeId =
+    typeof it.placeId === "number" && Number.isFinite(it.placeId)
+      ? it.placeId
+      : typeof it.id === "number" && Number.isFinite(it.id)
+        ? it.id
+        : null;
+
+  const thumbnails = Array.isArray(it.photos)
+    ? it.photos.filter(Boolean).map(String)
+    : [];
+  const photo = thumbnails[0] ?? null;
+  const categoryKey = it.list ?? null;
+
+  return {
+    placeId,
+    id: String(placeId ?? it.id ?? it.gid ?? fallbackGid ?? ""),
+
+    name: it.name ?? "",
+    address: it.address ?? "",
+
+    lat,
+    lng,
+
+    categoryKey,
+    category: getCategoryLabel(categoryKey) || null,
+
+    photo,
+    thumbnails,
+
+    ratingAvg: typeof it.rating === "number" ? it.rating : null,
+    ratingCount: typeof it.ratingCount === "number" ? it.ratingCount : null,
+    myRating: null,
+
+    savers: Array.isArray(it.savers)
+      ? it.savers.map((saver) => ({
+          nickname: saver.nickname,
+          profileImageUrl: saver.profileImageUrl ?? "",
+        }))
+      : [],
+    distanceM,
+
+    isBookmarked: typeof it.marked === "boolean" ? it.marked : true,
+  };
+}
+
+export function mapHomePlaceItemsToPlaces(
+  data: HomePlaceItem[],
+  options: MapOptions = {},
+): Place[] {
+  return data.map((it, idx) =>
+    mapHomePlaceItemToPlace(it, {
       ...options,
       fallbackGid: options.fallbackGid ?? String(idx),
     }),

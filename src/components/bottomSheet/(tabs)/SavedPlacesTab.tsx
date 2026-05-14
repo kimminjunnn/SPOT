@@ -89,8 +89,8 @@ export default function SavedPlacesTab() {
       ? categoryOptions.find((o) => o.value === category[0])?.label
       : "업종";
 
-  // ✅ 최초 1회 로드(/new)
-  const loadByNew = useCallback(async () => {
+  // 최초 1회 로드(/main/me/places)
+  const loadSavedPlaces = useCallback(async () => {
     if (lat == null || lng == null) return;
 
     setSavedLoading(true);
@@ -107,8 +107,8 @@ export default function SavedPlacesTab() {
   }, [lat, lng, setSavedList, setSavedLoading, setSavedError]);
 
   useEffect(() => {
-    loadByNew();
-  }, [loadByNew]);
+    loadSavedPlaces();
+  }, [loadSavedPlaces]);
 
   // ✅ sort는 이제 "클라 정렬"만: API 재호출 금지
   const handleSelectSort = useCallback((next: string[]) => {
@@ -138,11 +138,11 @@ export default function SavedPlacesTab() {
         console.error("[SavedPlacesTab] toggleBookmark failed:", err);
         // 3) 실패 시 강제 동기화
         if (lat != null && lng != null) {
-          await loadByNew();
+          await loadSavedPlaces();
         }
       }
     },
-    [applyBookmarkFromPlace, lat, lng, loadByNew],
+    [applyBookmarkFromPlace, lat, lng, loadSavedPlaces],
   );
 
   // ✅ 클라이언트 필터/정렬 (옵션 바뀔 때마다 여기서만 반영)
@@ -176,7 +176,7 @@ export default function SavedPlacesTab() {
           (b.distanceM ?? Number.MAX_SAFE_INTEGER),
       );
     } else {
-      // "latest": 서버(/new)에서 최신순이라고 가정하면 그대로 둔다.
+      // "latest": 서버(/main/me/places)에서 최신순이라고 가정하면 그대로 둔다.
       // 필요하면 여기서 createdAt 같은 필드 기준 정렬 추가
     }
 

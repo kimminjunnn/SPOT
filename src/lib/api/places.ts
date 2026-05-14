@@ -5,7 +5,11 @@ import type {
   Place,
   ApiPlaceMoreResponse,
 } from "@/src/types/place";
-import { mapApiPlacesToPlaces } from "@/src/lib/mappers/placeMapper";
+import type { HomePlaceItem } from "@/src/components/home/types";
+import {
+  mapApiPlacesToPlaces,
+  mapHomePlaceItemsToPlaces,
+} from "@/src/lib/mappers/placeMapper";
 
 export async function fetchMapPlaces(params: {
   latitude: number;
@@ -21,18 +25,18 @@ export async function fetchMapPlaces(params: {
   return res.data;
 }
 
-/** /new 저장한 장소 최신순 */
+/** /main/me/places 저장한 장소 */
 export async function fetchMyNewSavedPlaces(params: {
   lat: number;
   lng: number;
 }): Promise<Place[]> {
   const { lat, lng } = params;
 
-  const res = await api8080.get<ApiPlace[]>("/new", {
+  const res = await api8001.get<HomePlaceItem[]>("/main/me/places", {
     params: { lat, lng },
   });
 
-  return mapApiPlacesToPlaces(res.data, {
+  return mapHomePlaceItemsToPlaces(res.data, {
     currentLat: lat,
     currentLng: lng,
   });
