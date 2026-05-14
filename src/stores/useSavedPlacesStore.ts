@@ -37,21 +37,21 @@ export const useSavedPlacesStore = create<SavedPlacesStore>((set) => ({
     set((state) => {
       const exists = state.savedList.some((p) => p.placeId === place.placeId);
 
-      // 언북마크 → 리스트에서 제거
-      if (!willBookmark) {
-        return {
-          ...state,
-          savedList: state.savedList.filter((p) => p.placeId !== place.placeId),
-        };
-      }
-
-      // 등록 + 이미 있음 → flag만 켜기
+      // 언북마크 → 새로고침 전까지 리스트에 남기고 flag만 끈다
       if (exists) {
         return {
           ...state,
           savedList: state.savedList.map((p) =>
-            p.placeId === place.placeId ? { ...p, isBookmarked: true } : p
+            p.placeId === place.placeId
+              ? { ...p, isBookmarked: willBookmark }
+              : p,
           ),
+        };
+      }
+
+      if (!willBookmark) {
+        return {
+          ...state,
         };
       }
 

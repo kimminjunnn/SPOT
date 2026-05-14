@@ -1,11 +1,11 @@
 import { api8080, api8001 } from "@/src/lib/api/client";
 import type {
+  ApiMainMePlace,
   ApiPlace,
   ApiMapPlace,
   Place,
   ApiPlaceMoreResponse,
 } from "@/src/types/place";
-import type { HomePlaceItem } from "@/src/components/home/types";
 import {
   mapApiPlacesToPlaces,
   mapHomePlaceItemsToPlaces,
@@ -16,13 +16,20 @@ export async function fetchMapPlaces(params: {
   longitude: number;
   radius?: number;
 }): Promise<ApiMapPlace[]> {
-  const { latitude, longitude, radius } = params;
+  const { latitude, longitude } = params;
 
-  const res = await api8080.get<ApiMapPlace[]>("/main/map", {
-    params: { latitude, longitude, radius },
+  const res = await api8001.get<ApiMainMePlace[]>("/main/me/places", {
+    params: { lat: latitude, lng: longitude },
   });
 
-  return res.data;
+  return res.data.map((place) => ({
+    placeId: place.placeId,
+    gid: place.gId,
+    latitude: place.latitude,
+    longitude: place.longitude,
+    list: place.list,
+    name: place.name,
+  }));
 }
 
 /** /main/me/places 저장한 장소 */
@@ -32,9 +39,11 @@ export async function fetchMyNewSavedPlaces(params: {
 }): Promise<Place[]> {
   const { lat, lng } = params;
 
-  const res = await api8001.get<HomePlaceItem[]>("/main/me/places", {
+  const res = await api8001.get<ApiMainMePlace[]>("/main/me/places", {
     params: { lat, lng },
   });
+
+  console.log(res.data);
 
   return mapHomePlaceItemsToPlaces(res.data, {
     currentLat: lat,

@@ -1,6 +1,5 @@
 // src/lib/mappers/placeMapper.ts
-import type { HomePlaceItem } from "@/src/components/home/types";
-import type { ApiPlace, Place } from "@/src/types/place";
+import type { ApiMainMePlace, ApiPlace, Place } from "@/src/types/place";
 import { getCategoryLabel } from "@/src/utils/categoryLabel";
 import { calculateDistanceMeters } from "@/src/utils/distance";
 
@@ -82,35 +81,35 @@ export function mapApiPlacesToPlaces(
 }
 
 export function mapHomePlaceItemToPlace(
-  it: HomePlaceItem,
+  it: ApiMainMePlace,
   options: MapOptions = {},
 ): Place {
   const { currentLat, currentLng, fallbackGid } = options;
 
-  const lat = Number(it.lat);
-  const lng = Number(it.lng);
+  const lat = Number(it.latitude);
+  const lng = Number(it.longitude);
+  const serverDistance =
+    typeof it.distance === "number" && Number.isFinite(it.distance)
+      ? it.distance
+      : undefined;
 
   const distanceM =
     currentLat != null && currentLng != null && isFinite(lat) && isFinite(lng)
       ? calculateDistanceMeters(currentLat, currentLng, lat, lng)
-      : undefined;
+      : serverDistance;
 
   const placeId =
     typeof it.placeId === "number" && Number.isFinite(it.placeId)
       ? it.placeId
-      : typeof it.id === "number" && Number.isFinite(it.id)
-        ? it.id
-        : null;
+      : null;
 
-  const thumbnails = Array.isArray(it.photos)
-    ? it.photos.filter(Boolean).map(String)
-    : [];
+  const thumbnails = it.photo ? [String(it.photo)] : [];
   const photo = thumbnails[0] ?? null;
   const categoryKey = it.list ?? null;
 
   return {
     placeId,
-    id: String(placeId ?? it.id ?? it.gid ?? fallbackGid ?? ""),
+    id: String(placeId ?? it.gId ?? fallbackGid ?? ""),
 
     name: it.name ?? "",
     address: it.address ?? "",
@@ -124,9 +123,9 @@ export function mapHomePlaceItemToPlace(
     photo,
     thumbnails,
 
-    ratingAvg: typeof it.rating === "number" ? it.rating : null,
-    ratingCount: typeof it.ratingCount === "number" ? it.ratingCount : null,
-    myRating: null,
+    ratingAvg: typeof it.ratingAvg === "number" ? it.ratingAvg : null,
+    ratingCount: null,
+    myRating: typeof it.myRating === "number" ? it.myRating : null,
 
     savers: Array.isArray(it.savers)
       ? it.savers.map((saver) => ({
@@ -136,12 +135,12 @@ export function mapHomePlaceItemToPlace(
       : [],
     distanceM,
 
-    isBookmarked: typeof it.marked === "boolean" ? it.marked : true,
+    isBookmarked: typeof it.isMarked === "boolean" ? it.isMarked : true,
   };
 }
 
 export function mapHomePlaceItemsToPlaces(
-  data: HomePlaceItem[],
+  data: ApiMainMePlace[],
   options: MapOptions = {},
 ): Place[] {
   return data.map((it, idx) =>

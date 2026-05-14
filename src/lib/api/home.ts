@@ -90,6 +90,7 @@ export async function fetchHomePlacesMain(params: {
   const res = await api8001.get<HomePlaceItem[]>("/main/home/places", {
     params,
   });
+  console.log(res);
   return res.data;
 }
 

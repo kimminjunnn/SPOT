@@ -1,4 +1,4 @@
-// main/map API 호출, myPlaces만 return
+// /main/me/places 기반으로 저장한 장소 핀 데이터 로드
 import { useEffect, useRef, useState } from "react";
 import type { ApiMapPlace } from "@/src/types/place";
 import { fetchMapPlaces } from "@/src/lib/api/places";
@@ -38,7 +38,7 @@ export function useLoadMapPlaces(coords: Coords) {
         lastRequestKeyRef.current = null;
 
         console.log(
-          "[/main/map] 에러:",
+          "[/main/me/places map pins] 에러:",
           err?.response?.status,
           err?.response?.data ?? err.message,
         );

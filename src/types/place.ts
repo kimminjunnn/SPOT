@@ -76,3 +76,23 @@ export type ApiMapPlace = {
   list: string; // "cafe" 같은 카테고리
   name: string;
 };
+
+export type ApiMainMePlace = {
+  address: string;
+  distance: number;
+  gId: string;
+  isMarked: boolean;
+  latitude: number;
+  list: string;
+  longitude: number;
+  myRating: number | null;
+  name: string;
+  photo: string | null;
+  placeId: number;
+  ratingAvg: number | null;
+  savers: {
+    nickname: string;
+    profileImageUrl: string;
+  }[];
+  saversCount: number;
+};
