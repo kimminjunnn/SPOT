@@ -26,6 +26,7 @@ type Props = {
   onPressEditProfile?: () => void;
   onPressBlock?: () => void;
   onPressReport?: () => void;
+  onPressFriendCount?: () => void;
 };
 
 export default function UserCard({
@@ -40,6 +41,7 @@ export default function UserCard({
   onPressEditProfile,
   onPressBlock,
   onPressReport,
+  onPressFriendCount,
 }: Props) {
   const moreIcon = require("@/assets/images/3dot.png");
   const isStory = variant === "story";
@@ -126,7 +128,12 @@ export default function UserCard({
                 {bio}
               </Text>
 
-              <View style={styles.friendRow}>
+              <Pressable
+                onPress={onPressFriendCount}
+                disabled={!onPressFriendCount}
+                style={styles.friendRow}
+                hitSlop={8}
+              >
                 <View style={styles.avatarGroup}>
                   {friendAvatars.map((src, i) => (
                     <Image
@@ -138,7 +145,7 @@ export default function UserCard({
                 </View>
 
                 <Text style={styles.friendCount}>친구 {friendCount}명</Text>
-              </View>
+              </Pressable>
             </View>
 
             <View style={styles.right}>

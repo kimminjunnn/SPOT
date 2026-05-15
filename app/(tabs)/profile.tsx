@@ -74,6 +74,7 @@ export default function ProfileScreen() {
         friendCount={loading ? 0 : friendCount}
         friendAvatars={friendAvatars}
         profileImage={profileImageSource}
+        onPressFriendCount={() => router.push("/profile/friends")}
       />
 
       <View style={styles.twoButtonsContainer}>
