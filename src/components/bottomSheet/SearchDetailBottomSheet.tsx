@@ -84,10 +84,11 @@ export default function SearchDetailBottomSheet({ onClose }: Props) {
       handleIndicatorStyle={{ backgroundColor: Colors.gray_300 }}
     >
       <BottomSheetScrollView
-        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 20 }}
+        contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
       >
         <PlaceCard
+          style={styles.placeCard}
           name={name}
           category={categoryLabel}
           address={address ?? ""}
@@ -118,6 +119,13 @@ export default function SearchDetailBottomSheet({ onClose }: Props) {
 }
 
 const styles = StyleSheet.create({
+  contentContainer: {
+    paddingHorizontal: 16,
+    paddingBottom: 0,
+  },
+  placeCard: {
+    marginBottom: 0,
+  },
   sheetBackground: {
     backgroundColor: Colors.white,
     borderTopLeftRadius: 16,

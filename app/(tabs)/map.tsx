@@ -56,10 +56,12 @@ export default function Map() {
   const phase = useSearchStore((s) => s.phase);
   const items = useSearchStore((s) => s.items);
   const focused = useSearchStore((s) => s.focused);
+  const pendingDetailGid = useSearchStore((s) => s.pendingDetailGid);
 
   const reset = useSearchStore((s) => s.reset);
   const focus = useSearchStore((s) => s.focus);
   const unfocus = useSearchStore((s) => s.unfocus);
+  const clearPendingDetail = useSearchStore((s) => s.clearPendingDetail);
 
   const analyzeVisible = useAnalyzeResultStore((s) => s.visible);
   const analyzePlaces = useAnalyzeResultStore((s) => s.places);
@@ -81,6 +83,45 @@ export default function Map() {
     console.log("[Map] analyzeVisible:", analyzeVisible);
     console.log("[Map] analyzePlaces:", analyzePlaces.length);
   }, [analyzeVisible, analyzePlaces]);
+
+  useEffect(() => {
+    if (!pendingDetailGid || !coords) return;
+
+    let cancelled = false;
+    const gid = pendingDetailGid;
+    const { lat, lng } = coords;
+
+    (async () => {
+      try {
+        const detail = await fetchPlaceDetail({ gid, lat, lng });
+
+        if (cancelled) return;
+
+        clearPendingDetail();
+        focus(detail);
+        setSelectedPlaceId(detail.placeId);
+
+        if (isFinite(detail.lat) && isFinite(detail.lng)) {
+          mapRef.current?.animateCameraTo({
+            latitude: detail.lat,
+            longitude: detail.lng,
+            zoom: 16,
+            duration: 0,
+            easing: "EaseIn",
+          });
+        }
+      } catch (e) {
+        if (cancelled) return;
+
+        clearPendingDetail();
+        console.error("❌ pending place detail fetch 실패:", e);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [pendingDetailGid, coords, clearPendingDetail, focus]);
 
   const moveToCurrentLocation = async () => {
     try {

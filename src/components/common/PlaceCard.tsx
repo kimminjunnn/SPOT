@@ -8,6 +8,8 @@ import {
   ScrollView,
   Pressable,
   Modal,
+  StyleProp,
+  ViewStyle,
 } from "react-native";
 import { TextStyles } from "@/src/styles/TextStyles";
 import { Colors } from "@/src/styles/Colors";
@@ -30,6 +32,7 @@ interface PlaceCardProps {
   distanceText?: string; // ex) "320m", "1.2km"
   onToggleBookmark?: () => void;
   onPress?: () => void;
+  style?: StyleProp<ViewStyle>;
 }
 
 const DEFAULT_PROFILE_IMAGE = require("@/assets/images/default-profile.png");
@@ -76,6 +79,7 @@ export default function PlaceCard({
   distanceText,
   onToggleBookmark,
   onPress,
+  style,
 }: PlaceCardProps) {
   const [viewerVisible, setViewerVisible] = React.useState(false); // React.useState는 import useState를 하지 않아도 react에서 바로 꺼내쓸 수 있는 기술
   const [viewerIndex, setViewerIndex] = React.useState(0);
@@ -96,7 +100,7 @@ export default function PlaceCard({
   const actualSavedCount = savedCount ?? savedUsers?.length ?? 0;
 
   return (
-    <Pressable style={styles.card} onPress={onPress}>
+    <Pressable style={[styles.card, style]} onPress={onPress}>
       <View style={styles.header}>
         <Text style={[TextStyles.SemiBold20, { marginRight: 3 }]}>{name}</Text>
         <Text
