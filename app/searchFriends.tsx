@@ -22,44 +22,8 @@ import {
   type FriendSearchItem,
 } from "@/src/lib/api/friends";
 import { useFriendsStore } from "@/src/stores/useFriendsStore";
-
-export type RecentFriendItem = {
-  id: string;
-  keyword: string;
-  profileImageUrl?: string | null;
-};
-
-function useRecentFriendSearchMock() {
-  const [items, setItems] = useState<RecentFriendItem[]>([
-    { id: "1", keyword: "김하늘" },
-    { id: "2", keyword: "박철수" },
-    { id: "3", keyword: "아이러브푸드" },
-    { id: "4", keyword: "koilver_", profileImageUrl: null },
-  ]);
-  const [loading, setLoading] = useState(false);
-
-  const fetch = useCallback(async () => {
-    setLoading(true);
-    setLoading(false);
-  }, []);
-
-  const add = useCallback((item: RecentFriendItem) => {
-    setItems((prev) => {
-      const filtered = prev.filter((p) => p.keyword !== item.keyword);
-      return [item, ...filtered].slice(0, 10);
-    });
-  }, []);
-
-  const remove = useCallback((id: string) => {
-    setItems((prev) => prev.filter((p) => p.id !== id));
-  }, []);
-
-  const clear = useCallback(() => {
-    setItems([]);
-  }, []);
-
-  return { items, loading, fetch, add, remove, clear };
-}
+import { useRecentFriendSearchStore } from "@/src/stores/useRecentFriendSearchStore";
+import { useMyProfileStore } from "@/src/stores/useMyProfileStore";
 
 export default function SearchFriendScreen() {
   const [searchInputText, setSearchInputText] = useState("");
@@ -68,26 +32,17 @@ export default function SearchFriendScreen() {
   const upsertFriend = useFriendsStore((s) => s.upsertFriend);
   const removeFriend = useFriendsStore((s) => s.removeFriend);
   const loadFriends = useFriendsStore((s) => s.loadFriends);
+  const viewerId = useMyProfileStore((s) => s.profile?.id ?? null);
 
   const showRecent = !searchInputText || results === null;
   const showResults = Array.isArray(results) && results.length > 0;
 
-  const recentStore = useRecentFriendSearchMock();
-  const {
-    items: recent,
-    loading: recentLoading,
-    fetchRecent,
-    add,
-    remove,
-    clear,
-  } = {
-    items: recentStore.items,
-    loading: recentStore.loading,
-    fetchRecent: recentStore.fetch,
-    add: recentStore.add,
-    remove: recentStore.remove,
-    clear: recentStore.clear,
-  };
+  const recent = useRecentFriendSearchStore((s) => s.items);
+  const recentLoading = useRecentFriendSearchStore((s) => s.loading);
+  const fetchRecent = useRecentFriendSearchStore((s) => s.fetch);
+  const addRecent = useRecentFriendSearchStore((s) => s.add);
+  const removeRecent = useRecentFriendSearchStore((s) => s.remove);
+  const clearRecent = useRecentFriendSearchStore((s) => s.clear);
 
   useEffect(() => {
     fetchRecent();
@@ -163,23 +118,27 @@ export default function SearchFriendScreen() {
     const keyword = searchInputText.trim();
     if (!keyword) return;
 
-    add({
-      id: String(Date.now()),
-      keyword,
+    void addRecent({
+      displayText: keyword,
+      profilePhoto: null,
+      targetId: null,
+      viewerId,
     });
-  }, [searchInputText, add]);
+  }, [addRecent, searchInputText, viewerId]);
 
   const onSelectFriend = useCallback(
     (friend: FriendSearchItem) => {
-      add({
-        id: String(Date.now()),
-        keyword: friend.nickname || friend.userId,
-        profileImageUrl: friend.profileImageUrl,
+      void addRecent({
+        displayText: friend.nickname || friend.userId,
+        profilePhoto: friend.profileImageUrl,
+        searchType: friend.nickname ? "nickname" : "spot_id",
+        targetId: friend.id,
+        viewerId,
       });
 
       router.back();
     },
-    [add],
+    [addRecent, viewerId],
   );
 
   const updateResultStatus = useCallback(
@@ -326,8 +285,8 @@ export default function SearchFriendScreen() {
             items={recent}
             loading={recentLoading}
             onTapKeyword={(k) => setSearchInputText(k)}
-            onRemoveKeyword={(id) => remove(id)}
-            onClearAll={() => clear()}
+            onRemoveKeyword={(id) => removeRecent(id)}
+            onClearAll={() => clearRecent()}
           />
         )}
 

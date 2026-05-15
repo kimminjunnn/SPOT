@@ -2,7 +2,7 @@ import React from "react";
 import { View, Text, StyleSheet, Pressable, Image } from "react-native";
 import { Colors } from "@/src/styles/Colors";
 import { TextStyles } from "@/src/styles/TextStyles";
-import type { RecentFriendItem } from "@/app/searchFriends";
+import type { RecentFriendItem } from "@/src/stores/useRecentFriendSearchStore";
 
 type Props = {
   items: RecentFriendItem[];
