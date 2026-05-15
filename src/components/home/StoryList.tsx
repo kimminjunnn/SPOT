@@ -178,7 +178,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  avatarImage: { width: "80%", height: "80%" },
+  avatarImage: { width: "100%", height: "100%" },
   friendsIcon40: { width: 40, height: 40 },
   storyLabel: { ...TextStyles.Regular12, textAlign: "center" },
 });

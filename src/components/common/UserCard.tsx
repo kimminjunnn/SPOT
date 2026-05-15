@@ -88,7 +88,9 @@ export default function UserCard({
         {isStory ? (
           <>
             <View style={styles.leftProfile}>
-              <Image source={profileImage} style={styles.profileImage} />
+              <View style={styles.profileImageFrame}>
+                <Image source={profileImage} style={styles.profileImage} />
+              </View>
             </View>
 
             <View style={styles.center}>
@@ -149,10 +151,9 @@ export default function UserCard({
             </View>
 
             <View style={styles.right}>
-              <Image
-                source={profileImage}
-                style={[styles.profileImage, styles.profileImageStory]}
-              />
+              <View style={[styles.profileImageFrame, styles.profileImageStory]}>
+                <Image source={profileImage} style={styles.profileImage} />
+              </View>
             </View>
           </>
         )}
@@ -271,14 +272,20 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
 
-  // 이미지 공통
-  profileImage: {
+  profileImageFrame: {
     width: 77,
     height: 77,
     borderRadius: 100,
     borderWidth: 1,
     borderColor: Colors.gray_100,
-    padding: 10,
+    overflow: "hidden",
+    backgroundColor: Colors.white,
+  },
+
+  // 이미지 공통
+  profileImage: {
+    width: "100%",
+    height: "100%",
   },
 
   // story는 살짝 작게
