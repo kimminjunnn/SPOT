@@ -38,6 +38,24 @@ export type HomeUserResponse = {
   places: HomeUserPlace[];
 };
 
+type HomePlaceApiItem = Omit<HomePlaceItem, "lat" | "lng"> &
+  Partial<Pick<HomePlaceItem, "lat" | "lng">> & {
+    latitude?: number;
+    longitude?: number;
+  };
+
+function normalizeHomePlaceItem(item: HomePlaceApiItem): HomePlaceItem {
+  return {
+    ...item,
+    lat: Number(item.lat ?? item.latitude),
+    lng: Number(item.lng ?? item.longitude),
+  } as HomePlaceItem;
+}
+
+function normalizeHomePlaceItems(data: HomePlaceApiItem[]): HomePlaceItem[] {
+  return data.map(normalizeHomePlaceItem);
+}
+
 // /main/home
 export async function fetchHomeMain(params: {
   lat: number;
@@ -87,18 +105,20 @@ export async function fetchHomePlacesMain(params: {
   lat: number;
   lng: number;
 }) {
-  const res = await api8001.get<HomePlaceItem[]>("/main/home/places", {
+  const res = await api8001.get<HomePlaceApiItem[]>("/main/home/places", {
     params,
   });
   console.log(res);
-  return res.data;
+  return normalizeHomePlaceItems(res.data);
 }
 
 // /main/me/places  (여기만 s)
 export async function fetchHomePlacesMe(params: { lat: number; lng: number }) {
-  const res = await api8001.get<HomePlaceItem[]>("/main/me/places", { params });
+  const res = await api8001.get<HomePlaceApiItem[]>("/main/me/places", {
+    params,
+  });
   console.log(res);
-  return res.data;
+  return normalizeHomePlaceItems(res.data);
 }
 
 // /main/place/{userId}
@@ -108,10 +128,11 @@ export async function fetchHomePlacesUser(params: {
   lng: number;
 }) {
   const { userId, ...rest } = params;
-  const res = await api8001.get<HomePlaceItem[]>(`/main/places/${userId}`, {
+  const res = await api8001.get<HomePlaceApiItem[]>(`/main/places/${userId}`, {
     params: rest,
   });
-  return res.data;
+  console.log(res);
+  return normalizeHomePlaceItems(res.data);
 }
 
 /** -----------------------------
