@@ -9,6 +9,14 @@ type Coords = {
   lng: number | null;
 };
 
+function isCanceledError(error: any) {
+  return (
+    error?.name === "CanceledError" ||
+    error?.code === "ERR_CANCELED" ||
+    error?.message === "canceled"
+  );
+}
+
 export function useSearchPlaces(
   mapRef: RefObject<NaverMapViewRef | null>,
   coords: Coords,
@@ -43,6 +51,7 @@ export function useSearchPlaces(
         setResult(list);
       } catch (e: any) {
         if (!alive) return;
+        if (isCanceledError(e)) return;
 
         const msg =
           e?.response?.data?.message ||

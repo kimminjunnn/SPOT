@@ -59,7 +59,7 @@ export default function SearchDetailsBottomSheet({
   const Body = () => {
     if (phase === "loading") {
       return (
-        <BottomSheetView style={styles.centerWrap}>
+        <BottomSheetView style={[styles.centerWrap, styles.loadingWrap]}>
           <ActivityIndicator />
           <Text
             style={[
@@ -209,5 +209,8 @@ const styles = StyleSheet.create({
     paddingVertical: 28,
     alignItems: "center",
     justifyContent: "center",
+  },
+  loadingWrap: {
+    paddingTop: 72,
   },
 });
