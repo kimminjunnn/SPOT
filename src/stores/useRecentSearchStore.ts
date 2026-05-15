@@ -34,6 +34,20 @@ const normalize = (it: RecentSearchResponseItem): RecentItem | null => {
   return { id, keyword };
 };
 
+const getKeywordKey = (keyword: string) => keyword.trim().toLocaleLowerCase();
+
+const dedupeByKeyword = (items: RecentItem[]) => {
+  const seen = new Set<string>();
+
+  return items.filter((item) => {
+    const key = getKeywordKey(item.keyword);
+    if (!key || seen.has(key)) return false;
+
+    seen.add(key);
+    return true;
+  });
+};
+
 export const useRecentSearchStore = create<State & Actions>((set, get) => ({
   items: [],
   loading: false,
@@ -49,9 +63,9 @@ export const useRecentSearchStore = create<State & Actions>((set, get) => ({
 
     try {
       const data = await fetchRecentSearches({ signal: controller.signal });
-      const list = data
-        .map(normalize)
-        .filter(Boolean) as RecentItem[];
+      const list = dedupeByKeyword(
+        data.map(normalize).filter(Boolean) as RecentItem[],
+      );
       set({ items: list });
     } catch (e: any) {
       if (e?.code !== "ERR_CANCELED") {
@@ -64,17 +78,24 @@ export const useRecentSearchStore = create<State & Actions>((set, get) => ({
   },
 
   add: async (keyword: string) => {
+    const normalizedKeyword = keyword.trim();
+    if (!normalizedKeyword) return;
+
     const { items } = get();
     const tempId = genId("tmp");
-    const optimistic: RecentItem = { id: tempId, keyword };
-    // 중복 허용: 그냥 앞에 붙임
-    set({ items: [optimistic, ...items] });
+    const optimistic: RecentItem = { id: tempId, keyword: normalizedKeyword };
+    set({ items: dedupeByKeyword([optimistic, ...items]) });
 
     try {
-      const data = await createRecentSearch(keyword);
-      const created = normalize(data) ?? { id: genId("srv"), keyword };
+      const data = await createRecentSearch(normalizedKeyword);
+      const created = normalize(data) ?? {
+        id: genId("srv"),
+        keyword: normalizedKeyword,
+      };
       set((s) => ({
-        items: s.items.map((it) => (it.id === tempId ? created : it)),
+        items: dedupeByKeyword(
+          s.items.map((it) => (it.id === tempId ? created : it)),
+        ),
       }));
     } catch {
       // 실패 시 그대로 두고 로그만 — 필요 시 롤백 가능
