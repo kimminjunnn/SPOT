@@ -8,7 +8,7 @@ export type ApiPlace = {
   latitude: number;
   longitude: number;
   list: string;
-  photo: string | null;
+  photo: string | string[] | null;
   ratingAvg: number;
   ratingCount: number;
   myRating: number | null;
@@ -87,7 +87,7 @@ export type ApiMainMePlace = {
   longitude: number;
   myRating: number | null;
   name: string;
-  photo: string | null;
+  photo: string | string[] | null;
   placeId: number;
   ratingAvg: number | null;
   savers: {

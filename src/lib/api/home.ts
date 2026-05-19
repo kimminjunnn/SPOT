@@ -38,15 +38,28 @@ export type HomeUserResponse = {
   places: HomeUserPlace[];
 };
 
-type HomePlaceApiItem = Omit<HomePlaceItem, "lat" | "lng"> &
+type HomePlaceApiItem = Omit<HomePlaceItem, "lat" | "lng" | "photos"> &
   Partial<Pick<HomePlaceItem, "lat" | "lng">> & {
     latitude?: number;
     longitude?: number;
+    photo?: string | string[] | null;
+    photos?: string[] | null;
   };
 
+const normalizePhotoList = (...sources: unknown[]): string[] => {
+  return sources
+    .flatMap((source) => (Array.isArray(source) ? source : [source]))
+    .filter((photo): photo is string => typeof photo === "string")
+    .map((photo) => photo.trim())
+    .filter(Boolean);
+};
+
 function normalizeHomePlaceItem(item: HomePlaceApiItem): HomePlaceItem {
+  const photos = normalizePhotoList(item.photos, item.photo);
+
   return {
     ...item,
+    photos,
     lat: Number(item.lat ?? item.latitude),
     lng: Number(item.lng ?? item.longitude),
   } as HomePlaceItem;

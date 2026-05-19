@@ -9,6 +9,14 @@ type MapOptions = {
   fallbackGid?: string;
 };
 
+const normalizePhotoList = (...sources: unknown[]): string[] => {
+  return sources
+    .flatMap((source) => (Array.isArray(source) ? source : [source]))
+    .filter((photo): photo is string => typeof photo === "string")
+    .map((photo) => photo.trim())
+    .filter(Boolean);
+};
+
 export function mapApiPlaceToPlace(
   it: ApiPlace,
   options: MapOptions = {},
@@ -29,14 +37,8 @@ export function mapApiPlaceToPlace(
       : null;
 
   const anyIt = it as any;
-  const photo = it.photo ?? anyIt.photoUrl ?? null;
-
-  const thumbnails =
-    photo != null
-      ? [String(photo)]
-      : Array.isArray(anyIt.photos)
-        ? anyIt.photos.filter(Boolean).map(String)
-        : [];
+  const thumbnails = normalizePhotoList(it.photo, anyIt.photoUrl, anyIt.photos);
+  const photo = thumbnails[0] ?? null;
 
   const categoryKey = (it as any).list ?? null; // ✅ 원본 키 보존 ("cafe", "restaurant"...)
 
@@ -103,7 +105,7 @@ export function mapHomePlaceItemToPlace(
       ? it.placeId
       : null;
 
-  const thumbnails = it.photo ? [String(it.photo)] : [];
+  const thumbnails = normalizePhotoList(it.photo);
   const photo = thumbnails[0] ?? null;
   const categoryKey = it.list ?? null;
 

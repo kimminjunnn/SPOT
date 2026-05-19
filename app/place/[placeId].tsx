@@ -43,6 +43,26 @@ import SavedInfoCard from "@/src/components/place/SavedInfoCard";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
+const normalizePhotoList = (...sources: unknown[]): string[] => {
+  const seen = new Set<string>();
+
+  return sources
+    .flatMap((source) => (Array.isArray(source) ? source : [source]))
+    .filter((photo): photo is string => typeof photo === "string")
+    .flatMap((photo) => photo.split(","))
+    .map((photo) => photo.trim())
+    .filter(
+      (photo) =>
+        photo.length > 0 &&
+        (photo.startsWith("http://") || photo.startsWith("https://")),
+    )
+    .filter((photo) => {
+      if (seen.has(photo)) return false;
+      seen.add(photo);
+      return true;
+    });
+};
+
 export default function PlaceDetailScreen() {
   const { placeId, lat, lng } = useLocalSearchParams<{
     placeId: string;
@@ -73,21 +93,43 @@ export default function PlaceDetailScreen() {
   );
 
   const topImages = useMemo(() => {
-    if (place?.photo) return [{ uri: place.photo }];
-    if (basePlace?.photo) return [{ uri: basePlace.photo }];
-    if (basePlace?.thumbnails?.length) {
-      return basePlace.thumbnails.map((u) => ({ uri: u }));
-    }
+    const photos = normalizePhotoList(
+      place?.photo,
+      basePlace?.thumbnails,
+      basePlace?.photo,
+    );
+    if (photos.length > 0) return photos.map((u) => ({ uri: u }));
     return fallbackImages;
   }, [place, basePlace, fallbackImages]);
 
+  const topImageKey = useMemo(
+    () =>
+      topImages
+        .map((image, index) =>
+          typeof image === "object" && image !== null && "uri" in image
+            ? String(image.uri)
+            : `asset-${index}`,
+        )
+        .join("|"),
+    [topImages],
+  );
+
   const cardImages = useMemo(() => {
-    if (basePlace?.thumbnails?.length) {
-      return basePlace.thumbnails.map((u) => ({ uri: u }));
-    }
-    if (place?.photo) return [{ uri: place.photo }];
+    const photos = normalizePhotoList(
+      place?.photo,
+      basePlace?.thumbnails,
+      basePlace?.photo,
+    );
+    if (photos.length > 0) return photos.map((u) => ({ uri: u }));
     return [require("@/assets/images/default-place.png")];
   }, [place, basePlace]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+    requestAnimationFrame(() => {
+      flatListRef.current?.scrollToOffset({ offset: 0, animated: false });
+    });
+  }, [topImageKey]);
 
   const display = {
     name: place?.name ?? basePlace?.name ?? "알 수 없는 장소",
@@ -219,13 +261,18 @@ export default function PlaceDetailScreen() {
       <ScrollView>
         <View style={styles.topImageContainer}>
           <FlatList
+            key={topImageKey}
             ref={flatListRef}
             data={topImages}
             horizontal
             pagingEnabled
             onScroll={handleScroll}
             showsHorizontalScrollIndicator={false}
-            keyExtractor={(_, index) => index.toString()}
+            keyExtractor={(item, index) =>
+              typeof item === "object" && item !== null && "uri" in item
+                ? String(item.uri)
+                : `asset-${index}`
+            }
             renderItem={({ item }) => (
               <Image source={item} style={styles.topImage} />
             )}

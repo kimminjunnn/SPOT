@@ -36,7 +36,7 @@ export type MorePlace = {
   latitude: number;
   longitude: number;
   list: string;
-  photo: string;
+  photo: string | string[] | null;
   ratingAvg: number;
   ratingCount: number;
   myRating: number;
@@ -83,7 +83,8 @@ const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const PHOTO_GAP = 10;
 const PHOTO_SIZE = Math.floor((SCREEN_WIDTH - 32 - PHOTO_GAP * 2) / 3);
 
-const safeUri = (u?: string) => {
+const safeUri = (u?: string | string[] | null) => {
+  if (Array.isArray(u)) return safeUri(u[0]);
   if (!u) return null;
   if (u.startsWith("http://") || u.startsWith("https://")) return u;
   return u;
