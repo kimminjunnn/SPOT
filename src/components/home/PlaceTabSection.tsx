@@ -12,7 +12,6 @@ import PlaceCard from "../common/PlaceCard";
 import OptionModal from "../common/OptionModal";
 
 import { type HomePlaceItem } from "./types";
-import { useSearchStore } from "@/src/stores/useSearchStore";
 import { calculateDistanceMeters, isValidCoordinate } from "@/src/utils/distance";
 import { formatDistance } from "@/src/utils/format";
 import { getPlaceCardSaverProps } from "@/src/lib/mappers/placeCardSavers";
@@ -37,6 +36,7 @@ type PlaceTabSectionProps = {
   placeList: HomePlaceItem[];
   currentCoords?: { lat: number; lng: number } | null;
   onScrollDirection?: (direction: "up" | "down") => void;
+  onToggleBookmark?: (place: HomePlaceItem) => void;
 };
 
 const dummyCardFallbackImgs = [
@@ -58,6 +58,7 @@ export const PlaceTabSection = ({
   placeList,
   currentCoords,
   onScrollDirection,
+  onToggleBookmark,
 }: PlaceTabSectionProps) => {
   const [category, setCategory] = useState<string[]>([]);
   const [sort, setSort] = useState<string[]>(["latest"]);
@@ -66,8 +67,6 @@ export const PlaceTabSection = ({
   );
 
   const lastOffsetYRef = useRef(0);
-
-  const toggleBookmark = useSearchStore((s) => s.toggleBookmark);
 
   const sortLabel =
     SORT_OPTIONS.find((option) => option.value === sort[0])?.label ?? "최신순";
@@ -183,7 +182,7 @@ export const PlaceTabSection = ({
                   ? formatDistance(displayDistanceM)
                   : undefined
               }
-              onToggleBookmark={() => toggleBookmark(placeId)}
+              onToggleBookmark={() => onToggleBookmark?.(p)}
               onPress={() => {
                 if (placeId == null) return;
 

@@ -44,6 +44,7 @@ type HomePlaceApiItem = Omit<HomePlaceItem, "lat" | "lng" | "photos"> &
     longitude?: number;
     photo?: string | string[] | null;
     photos?: string[] | null;
+    isMarked?: boolean;
   };
 
 const normalizePhotoList = (...sources: unknown[]): string[] => {
@@ -62,6 +63,7 @@ function normalizeHomePlaceItem(item: HomePlaceApiItem): HomePlaceItem {
     photos,
     lat: Number(item.lat ?? item.latitude),
     lng: Number(item.lng ?? item.longitude),
+    marked: item.marked ?? item.isMarked ?? false,
   } as HomePlaceItem;
 }
 

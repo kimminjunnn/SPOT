@@ -42,6 +42,7 @@ import {
   fetchHomePlacesUser,
   fetchHomeUser,
 } from "@/src/lib/api/home";
+import { toggleBookmarkApi } from "@/src/lib/api/bookmark";
 import { fetchPlaceMore } from "@/src/lib/api/places";
 
 // Stores
@@ -245,6 +246,39 @@ export default function Home() {
     };
   }, [activeTab, scope, lat, lng]);
 
+  const handleTogglePlaceBookmark = useCallback(async (place: HomePlaceItem) => {
+    const placeId = getHomePlaceId(place);
+
+    if (placeId == null) {
+      console.warn("[Home.PlaceTab] placeId is null, cannot toggle bookmark");
+      return;
+    }
+
+    const previousMarked = place.marked;
+    const nextMarked = !previousMarked;
+
+    setPlaceList((current) =>
+      current.map((item) =>
+        getHomePlaceId(item) === placeId
+          ? { ...item, marked: nextMarked }
+          : item,
+      ),
+    );
+
+    try {
+      await toggleBookmarkApi(placeId);
+    } catch (error) {
+      console.error("[Home.PlaceTab] toggleBookmark failed:", error);
+      setPlaceList((current) =>
+        current.map((item) =>
+          getHomePlaceId(item) === placeId
+            ? { ...item, marked: previousMarked }
+            : item,
+        ),
+      );
+    }
+  }, []);
+
   useEffect(() => {
     if (activeTab !== "place") return;
     if (lat == null || lng == null) return;
@@ -437,6 +471,7 @@ export default function Home() {
               placeList={placeList}
               currentCoords={coords}
               onScrollDirection={handleScrollDirection}
+              onToggleBookmark={handleTogglePlaceBookmark}
             />
           )}
 
@@ -465,6 +500,18 @@ export default function Home() {
       />
     </SafeAreaView>
   );
+}
+
+function getHomePlaceId(place: HomePlaceItem) {
+  if (typeof place.placeId === "number" && Number.isFinite(place.placeId)) {
+    return place.placeId;
+  }
+
+  if (typeof place.id === "number" && Number.isFinite(place.id)) {
+    return place.id;
+  }
+
+  return null;
 }
 
 const styles = StyleSheet.create({
