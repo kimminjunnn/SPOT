@@ -7,9 +7,13 @@ import {
 import MyLocationButton from "@/src/components/map/MyLocationButton";
 import UserLocationMarker from "@/src/components/map/UserLocationMarker";
 import { Colors } from "@/src/styles/Colors";
+import { getMapPinImage } from "@/src/utils/getMapPinImage";
 import type { NaverMapViewRef } from "@mj-studio/react-native-naver-map";
 
 import { type HomeMarker } from "./types";
+
+const PIN_W = 52;
+const PIN_H = 58;
 
 type MapTabSectionProps = {
   mapRef: React.RefObject<NaverMapViewRef | null>;
@@ -26,8 +30,6 @@ export const MapTabSection = ({
   onPressCurrentLocation,
   onPressMarker,
 }: MapTabSectionProps) => {
-  const HOME_PIN = require("@/assets/images/spot-icon-orange.png");
-
   return (
     <View style={styles.mapContainer}>
       <NaverMapView
@@ -42,9 +44,7 @@ export const MapTabSection = ({
 
         {/* 핀 */}
         {markers.map((m) => {
-          const markerImage = m.imageUrl
-            ? ({ httpUri: m.imageUrl } as const)
-            : HOME_PIN;
+          const markerImage = getMapPinImage(m.raw?.list);
 
           return (
             <NaverMapMarkerOverlay
@@ -52,8 +52,8 @@ export const MapTabSection = ({
               latitude={m.lat}
               longitude={m.lng}
               image={markerImage}
-              width={44}
-              height={44}
+              width={PIN_W}
+              height={PIN_H}
               anchor={{ x: 0.5, y: 1 }}
               onTap={() => {
                 const pid = m?.raw?.placeId ?? m?.raw?.id ?? null;

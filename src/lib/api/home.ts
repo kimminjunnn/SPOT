@@ -8,12 +8,16 @@ import {
  *  MAP 탭 (/main, /main/me, /main/{userId})
  *  ----------------------------- */
 export type HomeMainPlace = {
-  id: number;
+  id?: number;
+  placeId?: number;
   name: string;
-  imageUrl: string;
-  commentCount: number;
-  lat: number;
-  lng: number;
+  imageUrl?: string;
+  commentCount?: number;
+  lat?: number;
+  lng?: number;
+  latitude?: number;
+  longitude?: number;
+  list?: string | null;
   distance: number;
 };
 
