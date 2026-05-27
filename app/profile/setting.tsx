@@ -46,7 +46,10 @@ export default function SettingScreen() {
           style={styles.row}
           onPress={() => setOpenPolicy(!openPolicy)}
         >
-          <Text style={styles.rowTextBold}>이용약관 및 개인정보 정책</Text>
+          <Text style={[styles.rowText, openPolicy && styles.rowTextBold]}>
+            이용약관 및 개인정보 정책
+          </Text>
+
           {/* 펄침/접힘 이미지 */}
           {openPolicy ? (
             <Image
