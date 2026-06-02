@@ -55,11 +55,13 @@ export async function fetchMyNewSavedPlaces(params: {
 export async function fetchHotPlaces(params: {
   lat: number;
   lng: number;
+  page?: number;
+  size?: number;
 }): Promise<Place[]> {
-  const { lat, lng } = params;
+  const { lat, lng, page = 0, size = 10 } = params;
 
   const res = await api8080.get<ApiPlace[]>("/popular", {
-    params: { lat, lng },
+    params: { lat, lng, page, size },
   });
 
   return mapApiPlacesToPlaces(res.data, {

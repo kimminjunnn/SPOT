@@ -25,11 +25,16 @@ export function mapApiPlaceToPlace(
 
   const lat = Number(it.latitude);
   const lng = Number(it.longitude);
+  const serverDistance =
+    typeof it.distance === "number" && Number.isFinite(it.distance)
+      ? it.distance
+      : undefined;
 
-  const distanceM =
+  const calculatedDistanceM =
     currentLat != null && currentLng != null && isFinite(lat) && isFinite(lng)
       ? calculateDistanceMeters(currentLat, currentLng, lat, lng)
       : undefined;
+  const distanceM = serverDistance ?? calculatedDistanceM;
 
   const placeId =
     typeof it.placeId === "number" && Number.isFinite(it.placeId)

@@ -1,5 +1,13 @@
-import React, { useMemo, useRef, useState } from "react";
-import { View, StyleSheet, Pressable, Image, Text } from "react-native";
+import React, { useCallback, useMemo, useRef, useState } from "react";
+import {
+  View,
+  StyleSheet,
+  Pressable,
+  Image,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
+  Text,
+} from "react-native";
 import BottomSheet, { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import Animated, {
   interpolate,
@@ -19,6 +27,7 @@ import { TextStyles } from "@/src/styles/TextStyles";
 
 import { useSavedPlacesStore } from "@/src/stores/useSavedPlacesStore"; // ← 추가
 import { useHotPlacesStore } from "@/src/stores/useHotPlacesStore";
+import { useLocationStore } from "@/src/stores/useLocationStore";
 
 interface PlacesBottomSheetContainerProps {
   onPressMyLocation: () => void;
@@ -35,6 +44,13 @@ export default function PlacesBottomSheetContainer({
   // 🔥 저장한 장소 개수 가져오기
   const savedCount = useSavedPlacesStore((s) => s.savedList.length);
   const hotCount = useHotPlacesStore((s) => s.hotList.length);
+  const hotLoading = useHotPlacesStore((s) => s.hotLoading);
+  const hotLoadingMore = useHotPlacesStore((s) => s.hotLoadingMore);
+  const hotHasMore = useHotPlacesStore((s) => s.hotHasMore);
+  const loadMoreHotPlaces = useHotPlacesStore((s) => s.loadMoreHotPlaces);
+  const coords = useLocationStore((s) => s.coords);
+  const lat = coords?.lat;
+  const lng = coords?.lng;
 
   // 버튼 위치 애니메이션
   const animatedButtonStyle = useAnimatedStyle(() => {
@@ -85,6 +101,39 @@ export default function PlacesBottomSheetContainer({
     bottomSheetRef.current?.snapToIndex(2);
   };
 
+  const handleContentScroll = useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      if (
+        selectedTab !== "hot" ||
+        lat == null ||
+        lng == null ||
+        hotLoading ||
+        hotLoadingMore ||
+        !hotHasMore
+      ) {
+        return;
+      }
+
+      const { contentOffset, contentSize, layoutMeasurement } =
+        event.nativeEvent;
+      const distanceFromBottom =
+        contentSize.height - (contentOffset.y + layoutMeasurement.height);
+
+      if (distanceFromBottom < 160) {
+        loadMoreHotPlaces({ lat, lng });
+      }
+    },
+    [
+      hotHasMore,
+      hotLoading,
+      hotLoadingMore,
+      lat,
+      lng,
+      loadMoreHotPlaces,
+      selectedTab,
+    ],
+  );
+
   return (
     <View style={{ flex: 1 }}>
       {/* 커스텀 내 위치 버튼 */}
@@ -127,7 +176,10 @@ export default function PlacesBottomSheetContainer({
         animatedIndex={animatedIndex}
         enableDynamicSizing={false}
       >
-        <BottomSheetScrollView style={styles.contentContainer}>
+        <BottomSheetScrollView
+          style={styles.contentContainer}
+          onScroll={handleContentScroll}
+        >
           {/* 인디케이터 */}
           <View style={styles.indicatorContainer}>
             <Text style={TextStyles.Medium16}>

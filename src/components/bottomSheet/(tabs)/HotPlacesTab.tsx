@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, View, Text } from "react-native";
-import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 
 import PlaceCard from "@/src/components/common/PlaceCard";
 import FilterBar from "@/src/components/bottomSheet/FilterBar";
@@ -22,12 +21,14 @@ import { getPlaceCardSaverProps } from "@/src/lib/mappers/placeCardSavers";
 export default function HotPlacesTab() {
   const { handlePressPlaceCard } = usePlaceMoreNavigation();
 
-  const lat = useLocationStore((s) => s.coords.lat);
-  const lng = useLocationStore((s) => s.coords.lng);
+  const coords = useLocationStore((s) => s.coords);
+  const lat = coords?.lat;
+  const lng = coords?.lng;
 
   // ✅ store state
   const items = useHotPlacesStore((s) => s.hotList);
   const loading = useHotPlacesStore((s) => s.hotLoading);
+  const loadingMore = useHotPlacesStore((s) => s.hotLoadingMore);
   const errorMsg = useHotPlacesStore((s) => s.hotError);
   const refreshHotPlaces = useHotPlacesStore((s) => s.refreshHotPlaces);
   const applyHotBookmarkFromPlace = useHotPlacesStore(
@@ -105,7 +106,7 @@ export default function HotPlacesTab() {
 
       // 2) API 호출
       try {
-        await toggleBookmarkApi(place.placeId, willBookmark);
+        await toggleBookmarkApi(place.placeId);
       } catch (err) {
         console.error("[HotPlacesTab] toggleBookmark failed:", err);
 
@@ -157,11 +158,7 @@ export default function HotPlacesTab() {
         showSaveType={false}
       />
 
-      <BottomSheetScrollView
-        style={{ flex: 1 }}
-        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 24 }}
-        showsVerticalScrollIndicator={false}
-      >
+      <View style={{ paddingHorizontal: 16, paddingBottom: 24 }}>
         {/* 에러 */}
         {errorMsg && !loading && (
           <View style={{ paddingTop: 16 }}>
@@ -218,7 +215,9 @@ export default function HotPlacesTab() {
             />
           );
         })}
-      </BottomSheetScrollView>
+
+        {loadingMore && <ActivityIndicator style={{ marginVertical: 16 }} />}
+      </View>
 
       {/* 모달 */}
       <OptionModal
