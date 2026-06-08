@@ -37,7 +37,7 @@ export default function SavedPlacesTab() {
     null,
   );
   const [sort, setSort] = useState<string[]>(["latest"]); // 기본 최신순(표시용)
-  const [saveType, setSaveType] = useState<string[]>([]); // ["instagram"] | ["self"] | []
+  const [saveType, setSaveType] = useState<string[]>([]); // ["instagram"] | ["spot"] | []
   const [category, setCategory] = useState<string[]>([]); // ["cafe"] | ... | []
 
   const sortOptions = useMemo(
@@ -51,7 +51,7 @@ export default function SavedPlacesTab() {
     () => [
       { label: "전체", value: "all" },
       { label: "인스타그램", value: "instagram" },
-      { label: "직접 저장", value: "self" },
+      { label: "직접 저장", value: "spot" },
     ],
     [],
   );
@@ -146,26 +146,19 @@ export default function SavedPlacesTab() {
   );
 
   // ✅ 클라이언트 필터/정렬 (옵션 바뀔 때마다 여기서만 반영)
-  // 전제:
-  // - categoryKey가 Place에 있으면: p.categoryKey === "cafe" 로 필터 가능
-  // - saveType은 Place에 sourceKey 같은 게 있어야 정확히 가능함
-  //   (없으면 아래처럼 any로 임시 접근하거나, Place에 saveTypeKey 추가하는 게 맞음)
   const filteredItems = useMemo(() => {
     let arr = items;
 
     // 1) 저장 방식 필터
     if (saveType.length > 0) {
-      const key = saveType[0]; // "instagram" | "self"
-
-      // ✅ 추천: Place에 sourceKey/saveTypeKey 같은 필드를 두고 그걸로 비교
-      // 임시로: 서버 응답에 source/list 같은 필드가 있으면 매퍼에서 보존해두고 쓰는 게 맞다.
-      arr = arr.filter((p) => (p as any).saveTypeKey === key);
+      const key = saveType[0]; // "instagram" | "spot"
+      arr = arr.filter((p) => p.saveTypeKey === key);
     }
 
     // 2) 업종 필터
     if (category.length > 0) {
       const catKey = category[0]; // "cafe" | "restaurant" ...
-      arr = arr.filter((p) => (p as any).categoryKey === catKey);
+      arr = arr.filter((p) => p.categoryKey === catKey);
     }
 
     // 3) 정렬

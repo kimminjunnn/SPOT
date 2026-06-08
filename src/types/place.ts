@@ -31,6 +31,7 @@ export type Place = {
 
   category: string | null;
   categoryKey?: string | null;
+  saveTypeKey?: "spot" | "instagram" | null;
 
   photo: string | null;
   thumbnails: string[];
@@ -95,4 +96,7 @@ export type ApiMainMePlace = {
     profileImageUrl: string;
   }[];
   saversCount: number;
+  SaveType?: string | null;
+  saveType?: string | null;
+  save_type?: string | null;
 };

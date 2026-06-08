@@ -8,6 +8,7 @@ import ConfirmModal from "@/src/components/common/ConfirmModal";
 import { logout } from "@/src/lib/api/settings";
 import { useRouter } from "expo-router";
 import { useAuthStore } from "@/src/stores/useAuthStore";
+import { deactivateLastRegisteredPushToken } from "@/src/hooks/useRegisterPushToken";
 
 export default function AccountSettingScreen() {
   const router = useRouter();
@@ -25,6 +26,7 @@ export default function AccountSettingScreen() {
         onConfirm={() => {
           setLogoutVisible(false);
           void (async () => {
+            await deactivateLastRegisteredPushToken();
             await logout();
             await clearAuth();
             router.replace("/login");
