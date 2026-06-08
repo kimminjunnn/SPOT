@@ -13,6 +13,7 @@ import {
 import { useCallback, useEffect, useRef } from "react";
 import { AppState, NativeModules, Linking } from "react-native";
 import { useAuthStore } from "@/src/stores/useAuthStore";
+import { useRegisterPushToken } from "@/src/hooks/useRegisterPushToken";
 
 export default function RootLayout() {
   const token = useAuthStore((s) => s.token);
@@ -41,6 +42,8 @@ export default function RootLayout() {
   useEffect(() => {
     if (fontsLoaded && hasHydrated) SplashScreen.hideAsync();
   }, [fontsLoaded, hasHydrated]);
+
+  useRegisterPushToken({ enabled: hasHydrated && !!token });
 
   useEffect(() => {
     if (!fontsLoaded || !hasHydrated) return;

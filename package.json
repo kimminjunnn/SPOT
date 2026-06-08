@@ -34,6 +34,7 @@
     "expo-image-picker": "~16.1.4",
     "expo-linking": "~7.1.7",
     "expo-location": "~18.1.6",
+    "expo-notifications": "~0.31.5",
     "expo-random": "^14.0.1",
     "expo-router": "~5.1.4",
     "expo-share-intent": "^4.1.2",

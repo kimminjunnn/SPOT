@@ -16,6 +16,9 @@
       "associatedDomains": ["applinks:spot-universal.pages.dev"],
       "bundleIdentifier": "com.balancinglife.SPOT",
       "usesAppleSignIn": true,
+      "entitlements": {
+        "aps-environment": "development"
+      },
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSCameraUsageDescription": "프로필 사진을 촬영하기 위해 카메라 접근 권한이 필요합니다.",
@@ -38,6 +41,7 @@
     "plugins": [
       "expo-router",
       "expo-apple-authentication",
+      "expo-notifications",
       [
         "expo-splash-screen",
         {

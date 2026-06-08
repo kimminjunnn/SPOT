@@ -65,6 +65,7 @@
 		13B07F961A680F5B00A75B9A /* SPOT.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SPOT.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		13B07FB51A68108700A75B9A /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = SPOT/Images.xcassets; sourceTree = "<group>"; };
 		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = SPOT/Info.plist; sourceTree = "<group>"; };
+		2D6B52852F3CC81B007DD0CE /* SPOT.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; name = SPOT.entitlements; path = SPOT/SPOT.entitlements; sourceTree = "<group>"; };
 		2D6B52862F3CC81B007DD0CE /* SPOTRelease.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; name = SPOTRelease.entitlements; path = SPOT/SPOTRelease.entitlements; sourceTree = "<group>"; };
 		2D6B52882F3CC9D1007DD0CE /* SharedStore.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = SharedStore.m; sourceTree = "<group>"; };
 		2D6B52892F3CC9D1007DD0CE /* SharedStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedStore.swift; sourceTree = "<group>"; };
@@ -124,6 +125,7 @@
 		13B07FAE1A68108700A75B9A /* SPOT */ = {
 			isa = PBXGroup;
 			children = (
+				2D6B52852F3CC81B007DD0CE /* SPOT.entitlements */,
 				2D6B52862F3CC81B007DD0CE /* SPOTRelease.entitlements */,
 				F11748412D0307B40044C1D9 /* AppDelegate.swift */,
 				F11748442D0722820044C1D9 /* SPOT-Bridging-Header.h */,
@@ -281,6 +283,11 @@
 				TargetAttributes = {
 					13B07F861A680F5B00A75B9A = {
 						LastSwiftMigration = 1250;
+						SystemCapabilities = {
+							com.apple.Push = {
+								enabled = 1;
+							};
+						};
 					};
 					2DFC0D442F322D5000E4BC05 = {
 						CreatedOnToolsVersion = 26.2;
