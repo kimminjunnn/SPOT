@@ -17,6 +17,17 @@ const normalizePhotoList = (...sources: unknown[]): string[] => {
     .filter(Boolean);
 };
 
+const normalizeSaveTypeKey = (
+  value: string | null | undefined,
+): Place["saveTypeKey"] => {
+  const normalized = value?.trim().toLowerCase();
+
+  if (normalized === "spot") return "spot";
+  if (normalized === "instagram") return "instagram";
+
+  return null;
+};
+
 export function mapApiPlaceToPlace(
   it: ApiPlace,
   options: MapOptions = {},
@@ -108,6 +119,9 @@ export function mapHomePlaceItemToPlace(
   const thumbnails = normalizePhotoList(it.photo);
   const photo = thumbnails[0] ?? null;
   const categoryKey = it.list ?? null;
+  const saveTypeKey = normalizeSaveTypeKey(
+    it.SaveType ?? it.saveType ?? it.save_type,
+  );
 
   return {
     placeId,
@@ -121,6 +135,7 @@ export function mapHomePlaceItemToPlace(
 
     categoryKey,
     category: getCategoryLabel(categoryKey) || null,
+    saveTypeKey,
 
     photo,
     thumbnails,
