@@ -10,6 +10,7 @@ import { useMyProfileStore } from "@/src/stores/useMyProfileStore";
 import { fetchUnreadNotificationCount } from "@/src/lib/api/notification";
 import { Colors } from "@/src/styles/Colors";
 import { TextStyles } from "@/src/styles/TextStyles";
+import ProfileAdBanner from "../../src/components/ads/ProfileAdBanner";
 
 export default function ProfileScreen() {
   const defaultProfileImg = require("@/assets/images/default-profile.png");
@@ -131,10 +132,7 @@ export default function ProfileScreen() {
       </View>
 
       <View style={styles.advertise}>
-        <Image
-          style={{ width: "100%", height: 72 }}
-          source={require("@/assets/images/profile-ad.png")}
-        />
+        <ProfileAdBanner />
       </View>
     </ProfileLayout>
   );
