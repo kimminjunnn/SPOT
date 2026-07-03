@@ -8,7 +8,6 @@ import { useFocusEffect } from "expo-router";
 // types and constants
 import {
   type HomeScope,
-  type HomeCommentItem,
   type HomePlaceItem,
   type HomeMarker,
   HomeTabKey,
@@ -24,17 +23,11 @@ import { TopBar } from "@/src/components/home/TopBar";
 import { HomeHeader } from "@/src/components/home/HomeHeader";
 import { MapTabSection } from "@/src/components/home/MapTabSection";
 import { PlaceTabSection } from "@/src/components/home/PlaceTabSection";
-import { CommentTabSection } from "@/src/components/home/CommentTabSection";
 import { TabBar } from "@/src/components/home/TabBar";
-import CommentBottomSheet, {
-  type CommentBottomSheetHandle,
-} from "@/src/components/comment/CommentBottomSheet";
+import SearchDetailBottomSheet from "@/src/components/bottomSheet/SearchDetailBottomSheet";
 
 // API
 import {
-  fetchHomeCommentsMain,
-  fetchHomeCommentsMe,
-  fetchHomeCommentsUser,
   fetchHomeMain,
   fetchHomeMe,
   fetchHomePlacesMain,
@@ -43,13 +36,14 @@ import {
   fetchHomeUser,
 } from "@/src/lib/api/home";
 import { toggleBookmarkApi } from "@/src/lib/api/bookmark";
-import { fetchPlaceMore } from "@/src/lib/api/places";
+import { fetchPlaceDetail } from "@/src/lib/api/search";
 
 // Stores
 import { useAuthStore } from "@/src/stores/useAuthStore";
 import { useFriendsStore } from "@/src/stores/useFriendsStore";
 import { useLocationStore } from "@/src/stores/useLocationStore";
 import { useMyProfileStore } from "@/src/stores/useMyProfileStore";
+import { useSearchStore } from "@/src/stores/useSearchStore";
 
 // Hooks
 import { useAutoHideHeader } from "@/src/hooks/useAutoHideHeader";
@@ -66,7 +60,6 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState<HomeTabKey>("map");
   const [markers, setMarkers] = useState<HomeMarker[]>([]);
   const [placeList, setPlaceList] = useState<HomePlaceItem[]>([]);
-  const [commentList, setCommentList] = useState<HomeCommentItem[]>([]);
 
   const token = useAuthStore((state) => state.token);
   const hasHydrated = useAuthStore((state) => state.hasHydrated);
@@ -83,15 +76,13 @@ export default function Home() {
   const lng = coords?.lng;
 
   const mapRef = useRef<NaverMapViewRef>(null);
-  const commentSheetRef = useRef<CommentBottomSheetHandle>(null);
 
   const [didInitCamera, setDidInitCamera] = useState(false);
   const [selectedPlaceId, setSelectedPlaceId] = useState<number | null>(null);
-  const [morePlace, setMorePlace] = useState<any>(null);
-  const [moreComments, setMoreComments] = useState<any[]>([]);
-  const [moreLoading, setMoreLoading] = useState(false);
-  const [moreError, setMoreError] = useState<string | null>(null);
-  const [isCommentOpen, setIsCommentOpen] = useState(false);
+
+  const focusedPlace = useSearchStore((state) => state.focused);
+  const focusPlace = useSearchStore((state) => state.focus);
+  const unfocusPlace = useSearchStore((state) => state.unfocus);
 
   const {
     isHeaderReady,
@@ -104,6 +95,22 @@ export default function Home() {
   useEffect(() => {
     showHeader();
   }, [activeTab, showHeader]);
+
+  useEffect(() => {
+    if (activeTab !== "map") {
+      setSelectedPlaceId(null);
+      unfocusPlace();
+    }
+  }, [activeTab, unfocusPlace]);
+
+  useFocusEffect(
+    useCallback(() => {
+      return () => {
+        setSelectedPlaceId(null);
+        unfocusPlace();
+      };
+    }, [unfocusPlace]),
+  );
 
   useEffect(() => {
     if (activeTab !== "map") return;
@@ -145,7 +152,8 @@ export default function Home() {
     (async () => {
       try {
         const toMarkerKey = (prefix: string, p: any, fallbackIdx: number) => {
-          const id = p?.placeId ?? p?.id ?? p?.gid ?? p?.num ?? fallbackIdx;
+          const id =
+            p?.placeId ?? p?.id ?? p?.gid ?? p?.gId ?? p?.num ?? fallbackIdx;
           return `${prefix}-${String(id)}`;
         };
 
@@ -313,65 +321,6 @@ export default function Home() {
     };
   }, [activeTab, scope, lat, lng]);
 
-  useEffect(() => {
-    if (activeTab !== "comment") return;
-    if (lat == null || lng == null) return;
-
-    let cancelled = false;
-
-    (async () => {
-      try {
-        let list: HomeCommentItem[] = [];
-
-        if (scope.type === "friends") {
-          list = await fetchHomeCommentsMain({ lat, lng, page: 0, size: 10 });
-        } else if (scope.type === "me") {
-          list = await fetchHomeCommentsMe({ lat, lng, page: 0, size: 10 });
-        } else {
-          list = await fetchHomeCommentsUser({
-            userId: scope.userId,
-            lat,
-            lng,
-            page: 0,
-            size: 10,
-          });
-        }
-
-        if (cancelled) return;
-        setCommentList(list);
-      } catch (e: any) {
-        console.log("[home-comment] fetch error:", {
-          message: e?.message,
-          status: e?.response?.status,
-          data: e?.response?.data,
-        });
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [activeTab, scope, lat, lng]);
-
-  const loadPlaceDetail = async (placeId: number) => {
-    if (lat == null || lng == null) return;
-
-    setMoreLoading(true);
-    setMoreError(null);
-
-    try {
-      const data = await fetchPlaceMore({ lat, lng, placeId });
-      setMorePlace(data.places ?? null);
-      setMoreComments(Array.isArray(data.comments) ? data.comments : []);
-    } catch (e: any) {
-      setMoreError(e?.message ?? "failed");
-      setMorePlace(null);
-      setMoreComments([]);
-    } finally {
-      setMoreLoading(false);
-    }
-  };
-
   const handleSelectStory = (user: StorySelectedUser | null) => {
     if (!user) {
       setSelectedUser(null);
@@ -405,10 +354,49 @@ export default function Home() {
     });
   };
 
-  const handlePressMapMarker = (placeId: number) => {
+  const handlePressMapMarker = async (marker: HomeMarker) => {
+    if (lat == null || lng == null) return;
+
+    const raw = marker.raw ?? {};
+    const placeId = raw.placeId ?? raw.id;
+    const gid = getHomeMarkerGid(marker);
+
+    if (typeof placeId !== "number" || !Number.isFinite(placeId)) {
+      console.warn(
+        "[Home.MapTab] placeId is missing, cannot load place detail",
+      );
+      return;
+    }
+
     setSelectedPlaceId(placeId);
-    commentSheetRef.current?.open(0);
-    loadPlaceDetail(placeId);
+
+    if (!gid) {
+      console.warn("[Home.MapTab] gid is missing, cannot load search detail", {
+        placeId,
+        raw,
+      });
+      return;
+    }
+
+    try {
+      const detail = await fetchPlaceDetail({ gid, lat, lng });
+      focusPlace(detail);
+
+      if (Number.isFinite(detail.lat) && Number.isFinite(detail.lng)) {
+        mapRef.current?.animateCameraTo?.({
+          latitude: detail.lat,
+          longitude: detail.lng,
+          zoom: 16,
+          duration: 400,
+        });
+      }
+    } catch (e: any) {
+      console.log("[Home.MapTab] place detail fetch error:", {
+        message: e?.message,
+        status: e?.response?.status,
+        data: e?.response?.data,
+      });
+    }
   };
 
   const handlePressTab = (tab: HomeTabKey) => {
@@ -460,7 +448,8 @@ export default function Home() {
             <MapTabSection
               mapRef={mapRef}
               markers={markers}
-              isCommentOpen={isCommentOpen}
+              selectedPlaceId={selectedPlaceId}
+              isCommentOpen={!!focusedPlace}
               onPressCurrentLocation={moveToCurrentLocation}
               onPressMarker={handlePressMapMarker}
             />
@@ -485,19 +474,14 @@ export default function Home() {
         </View>
       </View>
 
-      <CommentBottomSheet
-        ref={commentSheetRef}
-        onOpen={() => setIsCommentOpen(true)}
-        onClose={() => setIsCommentOpen(false)}
-        placeId={selectedPlaceId}
-        place={morePlace}
-        comments={moreComments}
-        loading={moreLoading}
-        error={moreError}
-        onRetry={() => {
-          if (selectedPlaceId != null) loadPlaceDetail(selectedPlaceId);
-        }}
-      />
+      {activeTab === "map" && focusedPlace ? (
+        <SearchDetailBottomSheet
+          onClose={() => {
+            setSelectedPlaceId(null);
+            unfocusPlace();
+          }}
+        />
+      ) : null}
     </SafeAreaView>
   );
 }
@@ -512,6 +496,16 @@ function getHomePlaceId(place: HomePlaceItem) {
   }
 
   return null;
+}
+
+function getHomeMarkerGid(marker: HomeMarker) {
+  const raw = marker.raw ?? {};
+  const gid = raw.gid ?? raw.gId ?? raw.g_id;
+
+  if (gid == null) return null;
+
+  const normalized = String(gid).trim();
+  return normalized.length > 0 ? normalized : null;
 }
 
 const styles = StyleSheet.create({

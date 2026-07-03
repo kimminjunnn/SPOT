@@ -10,6 +10,8 @@ import {
 export type HomeMainPlace = {
   id?: number;
   placeId?: number;
+  gid?: string;
+  gId?: string;
   name: string;
   imageUrl?: string;
   commentCount?: number;
@@ -28,6 +30,8 @@ export type HomeMainResponse = {
 
 export type HomeUserPlace = {
   placeId: number;
+  gid?: string;
+  gId?: string;
   name: string;
   latitude: number;
   longitude: number;

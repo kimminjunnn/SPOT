@@ -14,18 +14,21 @@ import { type HomeMarker } from "./types";
 
 const PIN_W = 52;
 const PIN_H = 58;
+const PIN_SCALE = 1.5;
 
 type MapTabSectionProps = {
   mapRef: React.RefObject<NaverMapViewRef | null>;
   markers: HomeMarker[];
+  selectedPlaceId?: number | null;
   isCommentOpen: boolean;
   onPressCurrentLocation: () => void | Promise<void>;
-  onPressMarker: (placeId: number) => void;
+  onPressMarker: (marker: HomeMarker) => void;
 };
 
 export const MapTabSection = ({
   mapRef,
   markers,
+  selectedPlaceId,
   isCommentOpen,
   onPressCurrentLocation,
   onPressMarker,
@@ -45,6 +48,11 @@ export const MapTabSection = ({
         {/* 핀 */}
         {markers.map((m) => {
           const markerImage = getMapPinImage(m.raw?.list);
+          const markerPlaceId = getMarkerPlaceId(m);
+          const isSelected =
+            markerPlaceId != null && markerPlaceId === selectedPlaceId;
+          const width = isSelected ? Math.round(PIN_W * PIN_SCALE) : PIN_W;
+          const height = isSelected ? Math.round(PIN_H * PIN_SCALE) : PIN_H;
 
           return (
             <NaverMapMarkerOverlay
@@ -52,13 +60,12 @@ export const MapTabSection = ({
               latitude={m.lat}
               longitude={m.lng}
               image={markerImage}
-              width={PIN_W}
-              height={PIN_H}
+              width={width}
+              height={height}
               anchor={{ x: 0.5, y: 1 }}
+              zIndex={isSelected ? 999 : 1}
               onTap={() => {
-                const pid = m?.raw?.placeId ?? m?.raw?.id ?? null;
-                if (typeof pid !== "number") return;
-                onPressMarker(pid);
+                onPressMarker(m);
               }}
             />
           );
@@ -75,6 +82,15 @@ export const MapTabSection = ({
     </View>
   );
 };
+
+function getMarkerPlaceId(marker: HomeMarker) {
+  const raw = marker.raw ?? {};
+  const placeId = raw.placeId ?? raw.id;
+
+  return typeof placeId === "number" && Number.isFinite(placeId)
+    ? placeId
+    : null;
+}
 
 const styles = StyleSheet.create({
   mapContainer: { flex: 1, backgroundColor: Colors.gray_100 },
