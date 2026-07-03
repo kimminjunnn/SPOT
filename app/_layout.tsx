@@ -11,7 +11,7 @@ import {
   useSegments,
 } from "expo-router";
 import { useCallback, useEffect, useRef } from "react";
-import { AppState, NativeModules, Linking } from "react-native";
+import { AppState, NativeModules, Linking, Platform } from "react-native";
 import { useAuthStore } from "@/src/stores/useAuthStore";
 import { useRegisterPushToken } from "@/src/hooks/useRegisterPushToken";
 
@@ -29,6 +29,17 @@ export default function RootLayout() {
   useEffect(() => {
     hydrate();
   }, [hydrate]);
+
+  useEffect(() => {
+    if (Platform.OS !== "ios") return;
+    if (NativeModules.RNGoogleMobileAdsModule == null) return;
+
+    void import("react-native-google-mobile-ads")
+      .then(({ default: mobileAds }) => mobileAds().initialize())
+      .catch((error) => {
+        if (__DEV__) console.warn("Google Mobile Ads initialization skipped:", error);
+      });
+  }, []);
 
   const [fontsLoaded] = useFonts({
     PretendardRegular: require("@/assets/fonts/Pretendard-Regular.ttf"),

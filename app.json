@@ -43,6 +43,12 @@
       "expo-apple-authentication",
       "expo-notifications",
       [
+        "react-native-google-mobile-ads",
+        {
+          "iosAppId": "ca-app-pub-8541783556954989~8526319281"
+        }
+      ],
+      [
         "expo-splash-screen",
         {
           "image": "./assets/images/splash-icon.png",
@@ -61,5 +67,8 @@
         "projectId": "f317b9fb-40e5-4295-a7e1-023e6083537c"
       }
     }
+  },
+  "react-native-google-mobile-ads": {
+    "ios_app_id": "ca-app-pub-8541783556954989~8526319281"
   }
 }
