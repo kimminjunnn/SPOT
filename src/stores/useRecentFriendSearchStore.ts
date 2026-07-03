@@ -59,9 +59,9 @@ const normalize = (
   const keyword = String(item?.display_text ?? "").trim();
   if (!keyword) return null;
 
-  const idRaw = item?.id ?? item?.recent_id;
+  const idRaw = item?.id ?? item?.recent_id ?? item?.recent_search_id;
   const searchType =
-    item?.search_type === "spot_id" || item?.search_type === "nickname"
+    item?.search_type === "spot_id" || item?.search_type === "spot_nickname"
       ? item.search_type
       : undefined;
 
@@ -75,7 +75,7 @@ const normalize = (
 };
 
 const guessSearchType = (displayText: string): RecentFriendSearchType =>
-  /^[A-Za-z0-9_]+$/.test(displayText.trim()) ? "spot_id" : "nickname";
+  /^[A-Za-z0-9_]+$/.test(displayText.trim()) ? "spot_id" : "spot_nickname";
 
 export const useRecentFriendSearchStore = create<State & Actions>(
   (set, get) => ({
@@ -128,13 +128,16 @@ export const useRecentFriendSearchStore = create<State & Actions>(
         items: dedupeByKeyword([optimistic, ...state.items]).slice(0, 10),
       }));
 
+      if (input.targetId == null) {
+        return;
+      }
+
       try {
         const data = await createRecentFriendSearch({
           display_text: displayText,
           profile_photo: input.profilePhoto ?? null,
           search_type: searchType,
-          target_id: input.targetId ?? null,
-          viewer_id: input.viewerId ?? null,
+          target_id: input.targetId,
         });
         const created = normalize(data) ?? optimistic;
 

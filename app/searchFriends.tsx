@@ -131,7 +131,7 @@ export default function SearchFriendScreen() {
       void addRecent({
         displayText: friend.nickname || friend.userId,
         profilePhoto: friend.profileImageUrl,
-        searchType: friend.nickname ? "nickname" : "spot_id",
+        searchType: friend.nickname ? "spot_nickname" : "spot_id",
         targetId: friend.id,
         viewerId,
       });
