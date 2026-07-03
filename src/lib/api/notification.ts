@@ -1,88 +1,93 @@
-// src/lib/api/notifications.ts
 import { api8001 } from "@/src/lib/api/client";
-import type { ApiEnvelope } from "@/src/lib/api/common";
 
 // ============
-// GET /notifications?limit=20&offset=0
+// GET /notifications/details
 // ============
-export type ApiNotification = {
-  id: number;
-  type: string;
-  title: string;
-  body: string;
-  route: string;
-  cta: string;
+export type ApiNotificationDetail = {
+  created_at: string;
   is_read: boolean;
-  created_at: string; // ISO
+  notification_id: number;
+  one_line: string | null;
+  photo: string | null;
+  sender_id: number;
+  spot_id: string;
+  spot_nickname: string;
+  type: string;
 };
 
-export type NotificationsResponse = ApiEnvelope<{
-  total: number;
-  notifications: ApiNotification[];
-}>;
+export type NotificationDetailsResponse = {
+  notifications: ApiNotificationDetail[];
+};
 
-export type NotificationItem = {
+export type NotificationDetail = {
   id: number;
+  senderId: number;
   type: string;
-  title: string;
-  body: string;
-  route: string;
-  cta: string;
+  nickname: string;
+  userId: string;
+  oneLine: string | null;
+  photo: string | null;
   isRead: boolean;
   createdAt: string;
 };
 
-export async function fetchNotifications(params?: {
-  limit?: number;
-  offset?: number;
-}): Promise<{ total: number; notifications: NotificationItem[] }> {
-  try {
-    const res = await api8001.get<NotificationsResponse>("/notifications", {
-      params: {
-        ...(params?.limit !== undefined ? { limit: params.limit } : {}),
-        ...(params?.offset !== undefined ? { offset: params.offset } : {}),
-      },
-    });
+export function mapNotificationDetail(
+  item: ApiNotificationDetail,
+): NotificationDetail {
+  return {
+    id: item.notification_id,
+    senderId: item.sender_id,
+    type: item.type,
+    nickname: item.spot_nickname,
+    userId: item.spot_id,
+    oneLine: item.one_line,
+    photo: item.photo,
+    isRead: item.is_read,
+    createdAt: item.created_at,
+  };
+}
 
-    const raw = Array.isArray(res.data?.data?.notifications)
-      ? res.data.data.notifications
-      : [];
+export async function fetchNotificationDetails(): Promise<
+  NotificationDetail[]
+> {
+  const res = await api8001.get<NotificationDetailsResponse>(
+    "/notifications/details",
+  );
 
-    return {
-      total: Number(res.data?.data?.total ?? raw.length),
-      notifications: raw.map((n) => ({
-        id: n.id,
-        type: n.type,
-        title: n.title,
-        body: n.body,
-        route: n.route,
-        cta: n.cta,
-        isRead: n.is_read,
-        createdAt: n.created_at,
-      })),
-    };
-  } catch {
-    return { total: 0, notifications: [] };
-  }
+  const raw = Array.isArray(res.data?.notifications)
+    ? res.data.notifications
+    : [];
+
+  return raw.map(mapNotificationDetail);
 }
 
 // ============
 // POST /notifications/read
-// body: { notification_ids: number[] }
 // ============
-export type ReadNotificationsResponse = ApiEnvelope<{
+export type ReadNotificationsResponse = {
   message: string;
-}>;
+};
 
-export async function readNotifications(
-  notificationIds: number[],
-): Promise<boolean> {
+export async function readNotifications(): Promise<boolean> {
   try {
-    await api8001.post<ReadNotificationsResponse>("/notifications/read", {
-      notification_ids: notificationIds,
-    });
+    await api8001.post<ReadNotificationsResponse>("/notifications/read");
     return true;
   } catch {
     return false;
   }
+}
+
+// ============
+// GET /notifications/unread-count
+// ============
+export type UnreadNotificationCountResponse = {
+  unread_count: number;
+};
+
+export async function fetchUnreadNotificationCount(): Promise<number> {
+  const res = await api8001.get<UnreadNotificationCountResponse>(
+    "/notifications/unread-count",
+  );
+
+  return Number(res.data?.unread_count ?? 0);
 }

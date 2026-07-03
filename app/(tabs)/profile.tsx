@@ -1,5 +1,5 @@
-import { useCallback } from "react";
-import { View, Pressable, StyleSheet, Image } from "react-native";
+import { useCallback, useState } from "react";
+import { View, Pressable, StyleSheet, Image, Text } from "react-native";
 import { router } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
 
@@ -7,10 +7,14 @@ import ProfileLayout from "@/src/components/profile/Layout";
 import ProfileUserCard from "@/src/components/common/UserCard";
 import SpotButton from "@/src/components/common/SpotButton";
 import { useMyProfileStore } from "@/src/stores/useMyProfileStore";
+import { fetchUnreadNotificationCount } from "@/src/lib/api/notification";
+import { Colors } from "@/src/styles/Colors";
+import { TextStyles } from "@/src/styles/TextStyles";
 
 export default function ProfileScreen() {
   const defaultProfileImg = require("@/assets/images/default-profile.png");
   const fallbackFriendImg = require("@/assets/images/default-profile.png");
+  const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
 
   const profile = useMyProfileStore((s) => s.profile);
   const friendCount = useMyProfileStore((s) => s.friendCount);
@@ -21,6 +25,28 @@ export default function ProfileScreen() {
   useFocusEffect(
     useCallback(() => {
       fetchMyProfile();
+
+      let alive = true;
+
+      const loadUnreadNotificationCount = async () => {
+        try {
+          const count = await fetchUnreadNotificationCount();
+          if (alive) setUnreadNotificationCount(count);
+        } catch (err: any) {
+          console.warn(
+            "미읽음 알림 개수 조회 에러:",
+            err?.response?.status,
+            err?.response?.data ?? err?.message,
+          );
+          if (alive) setUnreadNotificationCount(0);
+        }
+      };
+
+      void loadUnreadNotificationCount();
+
+      return () => {
+        alive = false;
+      };
     }, [fetchMyProfile]),
   );
   const nickname = profile?.spotNickname ?? "닉네임 없음";
@@ -55,6 +81,15 @@ export default function ProfileScreen() {
               style={{ width: 24, height: 24 }}
               source={require("@/assets/images/bell-icon.png")}
             />
+            {unreadNotificationCount > 0 && (
+              <View style={styles.notificationBadge}>
+                <Text style={styles.notificationBadgeText}>
+                  {unreadNotificationCount > 99
+                    ? "99+"
+                    : unreadNotificationCount}
+                </Text>
+              </View>
+            )}
           </Pressable>
 
           <Pressable onPress={() => router.push("/profile/setting")}>
@@ -117,6 +152,24 @@ const styles = StyleSheet.create({
   right: {
     gap: 14,
     flexDirection: "row",
+  },
+  notificationBadge: {
+    position: "absolute",
+    top: -7,
+    right: -8,
+    minWidth: 16,
+    height: 16,
+    paddingHorizontal: 4,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: Colors.primary_500,
+  },
+  notificationBadgeText: {
+    ...TextStyles.Bold12,
+    color: Colors.white,
+    fontSize: 9,
+    lineHeight: 11,
   },
   twoButtonsContainer: {
     marginTop: 20,
