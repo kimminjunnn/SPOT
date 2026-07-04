@@ -1,0 +1,4 @@
+export const NATIVE_AD_MEDIA_WIDTH = 124;
+export const NATIVE_AD_MEDIA_HEIGHT = 125;
+export const AD_CHOICES_RESERVED_SIZE = 40;
+export const NATIVE_AD_VIEW_HEIGHT = 225;

@@ -17,6 +17,8 @@ import { formatDistance } from "@/src/utils/format";
 import { toggleBookmarkApi } from "@/src/lib/api/bookmark";
 import { useHotPlacesStore } from "@/src/stores/useHotPlacesStore";
 import { getPlaceCardSaverProps } from "@/src/lib/mappers/placeCardSavers";
+import PlaceNativeAdCard from "@/src/components/ads/PlaceNativeAdCard";
+import { insertAdSlots } from "@/src/lib/ads/insertAdSlots";
 
 export default function HotPlacesTab() {
   const { handlePressPlaceCard } = usePlaceMoreNavigation();
@@ -144,6 +146,16 @@ export default function HotPlacesTab() {
     return arr;
   }, [items, category, sort]);
 
+  const listItems = useMemo(
+    () =>
+      insertAdSlots(filteredItems, {
+        interval: 5,
+        adKeyPrefix: "hot-places",
+        getItemKey: (place) => `hot-place-${place.id}`,
+      }),
+    [filteredItems],
+  );
+
   if (loading && filteredItems.length === 0) {
     return <ActivityIndicator style={{ marginVertical: 12 }} />;
   }
@@ -186,12 +198,17 @@ export default function HotPlacesTab() {
         )}
 
         {/* 리스트 */}
-        {filteredItems.map((p) => {
+        {listItems.map((listItem) => {
+          if (listItem.type === "ad") {
+            return <PlaceNativeAdCard key={listItem.key} />;
+          }
+
+          const p = listItem.item;
           const saverProps = getPlaceCardSaverProps(p);
 
           return (
             <PlaceCard
-              key={p.id}
+              key={listItem.key}
               name={p.name}
               category={p.category ?? ""}
               address={p.address}

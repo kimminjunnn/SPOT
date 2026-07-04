@@ -15,6 +15,8 @@ import { toggleBookmarkApi } from "@/src/lib/api/bookmark";
 import { usePlaceMoreNavigation } from "@/src/hooks/usePlaceMoreNavigation";
 import { formatDistance } from "@/src/utils/format";
 import { getPlaceCardSaverProps } from "@/src/lib/mappers/placeCardSavers";
+import PlaceNativeAdCard from "@/src/components/ads/PlaceNativeAdCard";
+import { insertAdSlots } from "@/src/lib/ads/insertAdSlots";
 
 export default function SavedPlacesTab() {
   const { handlePressPlaceCard } = usePlaceMoreNavigation();
@@ -176,6 +178,16 @@ export default function SavedPlacesTab() {
     return arr;
   }, [items, saveType, category, sort]);
 
+  const listItems = useMemo(
+    () =>
+      insertAdSlots(filteredItems, {
+        interval: 5,
+        adKeyPrefix: "saved-places",
+        getItemKey: (place) => `saved-place-${place.id}`,
+      }),
+    [filteredItems],
+  );
+
   if (loading && items.length === 0) {
     return <ActivityIndicator style={{ marginVertical: 12 }} />;
   }
@@ -210,12 +222,17 @@ export default function SavedPlacesTab() {
         )}
 
         {/* 리스트: 필터 결과 기준 */}
-        {filteredItems.map((p) => {
+        {listItems.map((listItem) => {
+          if (listItem.type === "ad") {
+            return <PlaceNativeAdCard key={listItem.key} />;
+          }
+
+          const p = listItem.item;
           const saverProps = getPlaceCardSaverProps(p);
 
           return (
             <PlaceCard
-              key={p.id}
+              key={listItem.key}
               name={p.name}
               category={p.category ?? ""}
               address={p.address}

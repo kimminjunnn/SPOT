@@ -15,6 +15,8 @@ import { type HomePlaceItem } from "./types";
 import { calculateDistanceMeters, isValidCoordinate } from "@/src/utils/distance";
 import { formatDistance } from "@/src/utils/format";
 import { getPlaceCardSaverProps } from "@/src/lib/mappers/placeCardSavers";
+import PlaceNativeAdCard from "@/src/components/ads/PlaceNativeAdCard";
+import { insertAdSlots } from "@/src/lib/ads/insertAdSlots";
 
 const SORT_OPTIONS = [
   { label: "최신순", value: "latest" },
@@ -95,6 +97,16 @@ export const PlaceTabSection = ({
     return next;
   }, [placeList, category, sort, currentCoords]);
 
+  const listItems = useMemo(
+    () =>
+      insertAdSlots(visiblePlaceList, {
+        interval: 5,
+        adKeyPrefix: "home-place-tab",
+        getItemKey: getPlaceCardKey,
+      }),
+    [visiblePlaceList],
+  );
+
   const handleScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const { contentOffset, layoutMeasurement, contentSize } = e.nativeEvent;
 
@@ -152,7 +164,12 @@ export const PlaceTabSection = ({
         onScroll={handleScroll}
         scrollEventThrottle={16}
       >
-        {visiblePlaceList.map((p, index) => {
+        {listItems.map((listItem) => {
+          if (listItem.type === "ad") {
+            return <PlaceNativeAdCard key={listItem.key} />;
+          }
+
+          const p = listItem.item;
           const imgs =
             Array.isArray(p.photos) && p.photos.length > 0
               ? p.photos.map((u) => ({ uri: u }))
@@ -165,7 +182,7 @@ export const PlaceTabSection = ({
 
           return (
             <PlaceCard
-              key={getPlaceCardKey(p, index)}
+              key={listItem.key}
               name={p.name}
               category={p.list}
               address={p.address}
