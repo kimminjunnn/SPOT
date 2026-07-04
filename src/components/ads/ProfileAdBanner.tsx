@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Image, NativeModules, Platform, StyleSheet, View } from "react-native";
+import { NativeModules, Platform, StyleSheet, View } from "react-native";
 
 type GoogleMobileAdsModule = typeof import("react-native-google-mobile-ads");
 
@@ -33,16 +33,7 @@ export default function ProfileAdBanner() {
 
   if (Platform.OS !== "ios") return null;
 
-  if (!googleMobileAds) {
-    return (
-      <View style={styles.container}>
-        <Image
-          style={styles.fallbackImage}
-          source={require("@/assets/images/profile-ad.png")}
-        />
-      </View>
-    );
-  }
+  if (!googleMobileAds) return null;
 
   const { BannerAd, BannerAdSize, TestIds } = googleMobileAds;
 
@@ -68,9 +59,5 @@ const styles = StyleSheet.create({
     minHeight: 72,
     alignItems: "center",
     justifyContent: "center",
-  },
-  fallbackImage: {
-    width: "100%",
-    height: 72,
   },
 });
