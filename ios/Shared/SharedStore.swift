@@ -42,4 +42,18 @@ class SharedStore: NSObject {
     defaults()?.removeObject(forKey: "latestAnalyzeUrl")
     defaults()?.synchronize()
   }
+
+  @objc func setPendingAnalyzeUrl(_ url: String) {
+    defaults()?.set(url, forKey: "pendingAnalyzeUrl")
+    defaults()?.synchronize()
+  }
+
+  @objc func getPendingAnalyzeUrl(_ resolve: @escaping (Any?) -> Void, rejecter reject: @escaping (String, String, Error?) -> Void) {
+    resolve(defaults()?.string(forKey: "pendingAnalyzeUrl"))
+  }
+
+  @objc func clearPendingAnalyzeUrl() {
+    defaults()?.removeObject(forKey: "pendingAnalyzeUrl")
+    defaults()?.synchronize()
+  }
 }

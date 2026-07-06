@@ -14,6 +14,8 @@ import { useCallback, useEffect, useRef } from "react";
 import { AppState, NativeModules, Linking, Platform } from "react-native";
 import { useAuthStore } from "@/src/stores/useAuthStore";
 import { useRegisterPushToken } from "@/src/hooks/useRegisterPushToken";
+import AnalyzeRewardGateModal from "@/src/components/ads/AnalyzeRewardGateModal";
+import { useAnalyzeRewardGateStore } from "@/src/stores/useAnalyzeRewardGateStore";
 
 export default function RootLayout() {
   const token = useAuthStore((s) => s.token);
@@ -89,6 +91,26 @@ export default function RootLayout() {
     }
   };
 
+  const openPendingAnalyzeRewardGate = useCallback(async () => {
+    const { SharedStore } = NativeModules;
+
+    if (!SharedStore?.getPendingAnalyzeUrl) {
+      console.warn("[AnalyzeRewardGate] SharedStore.getPendingAnalyzeUrl missing");
+      return false;
+    }
+
+    const pendingUrl = await SharedStore?.getPendingAnalyzeUrl?.();
+
+    if (typeof pendingUrl !== "string" || pendingUrl.length === 0) {
+      console.log("[AnalyzeRewardGate] pendingAnalyzeUrl empty");
+      return false;
+    }
+
+    console.log("[AnalyzeRewardGate] pendingAnalyzeUrl found:", pendingUrl);
+    useAnalyzeRewardGateStore.getState().open(pendingUrl);
+    return true;
+  }, []);
+
   const handleAnalyzeTrigger = useCallback(async () => {
     if (!hasHydrated) return false;
 
@@ -104,8 +126,10 @@ export default function RootLayout() {
     }
 
     router.replace("/(tabs)/map");
+    const openedRewardGate = await openPendingAnalyzeRewardGate();
+    console.log("[AnalyzeRewardGate] handleAnalyzeTrigger opened:", openedRewardGate);
     return true;
-  }, [hasHydrated, router, token]);
+  }, [hasHydrated, openPendingAnalyzeRewardGate, router, token]);
 
   useEffect(() => {
     if (!hasHydrated || !pendingAnalyzeTriggerRef.current) return;
@@ -114,6 +138,24 @@ export default function RootLayout() {
     void handleAnalyzeTrigger();
   }, [handleAnalyzeTrigger, hasHydrated]);
 
+  useEffect(() => {
+    if (!hasHydrated || !token) return;
+
+    let alive = true;
+
+    (async () => {
+      const opened = await openPendingAnalyzeRewardGate();
+      if (!alive || !opened) return;
+
+      router.replace("/(tabs)/map");
+      console.log("[AnalyzeRewardGate] initial pending check opened");
+    })();
+
+    return () => {
+      alive = false;
+    };
+  }, [hasHydrated, openPendingAnalyzeRewardGate, router, token]);
+
   // ✅ 딥링크 수신: 콜드 스타트 + 런타임 둘 다 처리
   useEffect(() => {
     let alive = true;
@@ -121,6 +163,7 @@ export default function RootLayout() {
     const onUrl = async ({ url }: { url: string }) => {
       if (!alive) return;
       const route = getRouteFromUrl(url);
+      console.log("[AnalyzeRewardGate] Linking url:", url, "route:", route);
       if (route !== "analyze-result") return;
 
       const handled = await handleAnalyzeTrigger();
@@ -137,6 +180,7 @@ export default function RootLayout() {
       if (!alive || !initialUrl) return;
 
       const route = getRouteFromUrl(initialUrl);
+      console.log("[AnalyzeRewardGate] initial url:", initialUrl, "route:", route);
       if (route !== "analyze-result") return;
 
       const handled = await handleAnalyzeTrigger();
@@ -156,6 +200,14 @@ export default function RootLayout() {
     const sub = AppState.addEventListener("change", async (state) => {
       if (state !== "active") return;
 
+      const pendingUrl = await SharedStore?.getPendingAnalyzeUrl?.();
+      console.log("[AnalyzeRewardGate] AppState pendingAnalyzeUrl:", pendingUrl);
+      if (typeof pendingUrl === "string" && pendingUrl.length > 0) {
+        const handled = await handleAnalyzeTrigger();
+        if (!handled) pendingAnalyzeTriggerRef.current = true;
+        return;
+      }
+
       const json = await SharedStore?.getLatestAnalyzeResult?.();
       if (!json) return;
 
@@ -166,7 +218,7 @@ export default function RootLayout() {
     });
 
     return () => sub.remove();
-  }, [handleAnalyzeTrigger]);
+  }, [handleAnalyzeTrigger, openPendingAnalyzeRewardGate]);
 
   if (!fontsLoaded || !hasHydrated) return null;
 
@@ -203,6 +255,7 @@ export default function RootLayout() {
             options={{ headerShown: false, presentation: "card" }}
           />
         </Stack>
+        <AnalyzeRewardGateModal sharedStore={NativeModules.SharedStore} />
       </BottomSheetModalProvider>
     </GestureHandlerRootView>
   );

@@ -16,4 +16,11 @@ RCT_EXTERN_METHOD(getLatestAnalyzeResult:(RCTPromiseResolveBlock)resolve
 
 RCT_EXTERN_METHOD(clearLatestAnalyzeResult)
 
+RCT_EXTERN_METHOD(setPendingAnalyzeUrl:(NSString *)url)
+
+RCT_EXTERN_METHOD(getPendingAnalyzeUrl:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject)
+
+RCT_EXTERN_METHOD(clearPendingAnalyzeUrl)
+
 @end
