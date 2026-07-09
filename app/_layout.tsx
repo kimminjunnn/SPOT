@@ -100,14 +100,22 @@ export default function RootLayout() {
     }
 
     const pendingUrl = await SharedStore?.getPendingAnalyzeUrl?.();
+    const ticketId = await SharedStore?.getPendingAnalyzeTicketId?.();
 
     if (typeof pendingUrl !== "string" || pendingUrl.length === 0) {
       console.log("[AnalyzeRewardGate] pendingAnalyzeUrl empty");
       return false;
     }
 
+    if (typeof ticketId !== "string" || ticketId.length === 0) {
+      console.warn("[AnalyzeRewardGate] pendingAnalyzeTicketId empty");
+      await SharedStore?.clearPendingAnalyzeUrl?.();
+      await SharedStore?.clearPendingAnalyzeTicketId?.();
+      return false;
+    }
+
     console.log("[AnalyzeRewardGate] pendingAnalyzeUrl found:", pendingUrl);
-    useAnalyzeRewardGateStore.getState().open(pendingUrl);
+    useAnalyzeRewardGateStore.getState().open(pendingUrl, ticketId);
     return true;
   }, []);
 
@@ -125,9 +133,15 @@ export default function RootLayout() {
       return true;
     }
 
-    router.replace("/(tabs)/map");
     const openedRewardGate = await openPendingAnalyzeRewardGate();
     console.log("[AnalyzeRewardGate] handleAnalyzeTrigger opened:", openedRewardGate);
+
+    if (openedRewardGate) {
+      router.replace("/(tabs)/map");
+    } else {
+      router.replace("/analyze-result");
+    }
+
     return true;
   }, [hasHydrated, openPendingAnalyzeRewardGate, router, token]);
 
@@ -211,14 +225,11 @@ export default function RootLayout() {
       const json = await SharedStore?.getLatestAnalyzeResult?.();
       if (!json) return;
 
-      await SharedStore?.clearLatestAnalyzeResult?.();
-
-      const handled = await handleAnalyzeTrigger();
-      if (!handled) pendingAnalyzeTriggerRef.current = true;
+      router.replace("/analyze-result");
     });
 
     return () => sub.remove();
-  }, [handleAnalyzeTrigger, openPendingAnalyzeRewardGate]);
+  }, [handleAnalyzeTrigger, router]);
 
   if (!fontsLoaded || !hasHydrated) return null;
 

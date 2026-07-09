@@ -56,4 +56,18 @@ class SharedStore: NSObject {
     defaults()?.removeObject(forKey: "pendingAnalyzeUrl")
     defaults()?.synchronize()
   }
+
+  @objc func setPendingAnalyzeTicketId(_ ticketId: String) {
+    defaults()?.set(ticketId, forKey: "pendingAnalyzeTicketId")
+    defaults()?.synchronize()
+  }
+
+  @objc func getPendingAnalyzeTicketId(_ resolve: @escaping (Any?) -> Void, rejecter reject: @escaping (String, String, Error?) -> Void) {
+    resolve(defaults()?.string(forKey: "pendingAnalyzeTicketId"))
+  }
+
+  @objc func clearPendingAnalyzeTicketId() {
+    defaults()?.removeObject(forKey: "pendingAnalyzeTicketId")
+    defaults()?.synchronize()
+  }
 }

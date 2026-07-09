@@ -1,18 +1,36 @@
 import { api8001 } from "@/src/lib/api/client";
 import type { AnalyzeApiResponse } from "@/src/lib/analyze/analyzeResult";
+import type { ExtractTicketStatusResponse } from "@/src/lib/analyze/extractTicketStatus";
 
-const ENABLE_REWARD_COMPLETE_API =
-  process.env.EXPO_PUBLIC_ENABLE_REWARD_COMPLETE_API === "true";
+export type ExtractEligibilityResponse = {
+  current_score: number;
+  need_ad: boolean;
+  score_cost: number;
+  ticket_id: string;
+};
 
 export async function analyzeInstagramUrl(url: string): Promise<AnalyzeApiResponse> {
   const res = await api8001.post<AnalyzeApiResponse>("/analyze", { url });
   return res.data;
 }
 
-export async function completeExtractScoreReward(): Promise<void> {
-  if (!ENABLE_REWARD_COMPLETE_API) return;
+export async function checkExtractEligibility(
+  url: string,
+): Promise<ExtractEligibilityResponse> {
+  const res = await api8001.post<ExtractEligibilityResponse>(
+    "/extract/eligibility",
+    { url },
+  );
 
-  await api8001.post("/ads/reward-complete", {
-    rewardType: "extract_score_reset",
-  });
+  return res.data;
+}
+
+export async function getExtractTicketStatus(
+  ticketId: string,
+): Promise<ExtractTicketStatusResponse> {
+  const res = await api8001.get<ExtractTicketStatusResponse>(
+    `/ads/ticket/${encodeURIComponent(ticketId)}/status`,
+  );
+
+  return res.data;
 }

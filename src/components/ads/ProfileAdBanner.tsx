@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { NativeModules, Platform, StyleSheet, View } from "react-native";
 
+import { getAdUnitId } from "@/src/lib/ads/adUnitIds";
+
 type GoogleMobileAdsModule = typeof import("react-native-google-mobile-ads");
 
 const IOS_PROFILE_BANNER_AD_UNIT_ID =
@@ -40,7 +42,10 @@ export default function ProfileAdBanner() {
   return (
     <View style={styles.container}>
       <BannerAd
-        unitId={__DEV__ ? TestIds.BANNER : IOS_PROFILE_BANNER_AD_UNIT_ID}
+        unitId={getAdUnitId({
+          productionId: IOS_PROFILE_BANNER_AD_UNIT_ID,
+          testId: TestIds.BANNER,
+        })}
         size={BannerAdSize.ANCHORED_ADAPTIVE_BANNER}
         requestOptions={{
           requestNonPersonalizedAdsOnly: true,

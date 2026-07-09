@@ -23,4 +23,11 @@ RCT_EXTERN_METHOD(getPendingAnalyzeUrl:(RCTPromiseResolveBlock)resolve
 
 RCT_EXTERN_METHOD(clearPendingAnalyzeUrl)
 
+RCT_EXTERN_METHOD(setPendingAnalyzeTicketId:(NSString *)ticketId)
+
+RCT_EXTERN_METHOD(getPendingAnalyzeTicketId:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject)
+
+RCT_EXTERN_METHOD(clearPendingAnalyzeTicketId)
+
 @end

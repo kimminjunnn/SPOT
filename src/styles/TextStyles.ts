@@ -78,6 +78,12 @@ export const TextStyles = {
     fontSize: 20,
     lineHeight: 20 * 1.3,
   },
+  SemiBold24: {
+    ...base,
+    fontFamily: "PretendardSemiBold",
+    fontSize: 24,
+    lineHeight: 24 * 1.3,
+  },
   Medium24: {
     ...base,
     fontFamily: "PretendardMedium",

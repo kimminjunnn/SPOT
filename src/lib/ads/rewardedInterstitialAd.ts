@@ -1,4 +1,5 @@
 import { NativeModules, Platform } from "react-native";
+import { buildRewardedInterstitialRequestOptions } from "./rewardedInterstitialOptions";
 
 const IOS_INSTAGRAM_EXTRACT_REWARDED_INTERSTITIAL_AD_UNIT_ID =
   "ca-app-pub-8541783556954989/8035666010";
@@ -35,7 +36,9 @@ async function loadGoogleMobileAds(): Promise<GoogleMobileAdsModule | null> {
   }
 }
 
-export async function showInstagramExtractRewardedInterstitial(): Promise<ShowRewardedInterstitialResult> {
+export async function showInstagramExtractRewardedInterstitial(
+  ticketId: string,
+): Promise<ShowRewardedInterstitialResult> {
   const module = await loadGoogleMobileAds();
 
   if (!module) {
@@ -47,9 +50,10 @@ export async function showInstagramExtractRewardedInterstitial(): Promise<ShowRe
     : IOS_INSTAGRAM_EXTRACT_REWARDED_INTERSTITIAL_AD_UNIT_ID;
 
   const rewardedInterstitial =
-    module.RewardedInterstitialAd.createForAdRequest(adUnitId, {
-      requestNonPersonalizedAdsOnly: true,
-    });
+    module.RewardedInterstitialAd.createForAdRequest(
+      adUnitId,
+      buildRewardedInterstitialRequestOptions(ticketId),
+    );
 
   return new Promise((resolve, reject) => {
     let settled = false;

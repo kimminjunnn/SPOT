@@ -17,14 +17,19 @@ import {
   mapAnalyzeResponseToItems,
 } from "@/src/lib/analyze/analyzeResult";
 import {
+  isExtractTicketFailed,
+  isExtractTicketVerified,
+} from "@/src/lib/analyze/extractTicketStatus";
+import {
   analyzeInstagramUrl,
-  completeExtractScoreReward,
+  getExtractTicketStatus,
 } from "@/src/lib/api/analyze";
 import { Colors } from "@/src/styles/Colors";
 import { TextStyles } from "@/src/styles/TextStyles";
 
 type SharedStoreModule = {
   clearPendingAnalyzeUrl?: () => Promise<void> | void;
+  clearPendingAnalyzeTicketId?: () => Promise<void> | void;
 };
 
 type AnalyzeRewardGateModalProps = {
@@ -36,6 +41,7 @@ export default function AnalyzeRewardGateModal({
 }: AnalyzeRewardGateModalProps) {
   const visible = useAnalyzeRewardGateStore((s) => s.visible);
   const pendingUrl = useAnalyzeRewardGateStore((s) => s.pendingUrl);
+  const ticketId = useAnalyzeRewardGateStore((s) => s.ticketId);
   const loading = useAnalyzeRewardGateStore((s) => s.loading);
   const error = useAnalyzeRewardGateStore((s) => s.error);
   const clear = useAnalyzeRewardGateStore((s) => s.clear);
@@ -44,6 +50,7 @@ export default function AnalyzeRewardGateModal({
 
   const clearPending = async () => {
     await sharedStore?.clearPendingAnalyzeUrl?.();
+    await sharedStore?.clearPendingAnalyzeTicketId?.();
     clear();
   };
 
@@ -52,13 +59,13 @@ export default function AnalyzeRewardGateModal({
   };
 
   const handleWatchAd = async () => {
-    if (!pendingUrl || loading) return;
+    if (!pendingUrl || !ticketId || loading) return;
 
     setLoading(true);
     setError(null);
 
     try {
-      const adResult = await showInstagramExtractRewardedInterstitial();
+      const adResult = await showInstagramExtractRewardedInterstitial(ticketId);
 
       if (adResult.status !== "earned") {
         setLoading(false);
@@ -66,7 +73,7 @@ export default function AnalyzeRewardGateModal({
         return;
       }
 
-      await completeExtractScoreReward();
+      await waitForExtractTicketReady(ticketId);
 
       const analyzeResult = await analyzeInstagramUrl(pendingUrl);
 
@@ -104,11 +111,11 @@ export default function AnalyzeRewardGateModal({
     <Modal transparent visible={visible} animationType="fade">
       <View style={styles.overlay}>
         <View style={styles.card}>
-          <Text style={[TextStyles.Bold24, styles.title]}>
-            무료 저장 횟수를 모두 사용했어요
+          <Text style={styles.title}>
+            무료 저장 기회를{"\n"}모두 사용했어요
           </Text>
-          <Text style={[TextStyles.Medium14, styles.description]}>
-            광고를 시청하면 게시물 속 장소를 한번 더 저장할 수 있어요.
+          <Text style={styles.description}>
+            광고를 시청하면 게시물 속 장소를{"\n"}한 번 더 저장할 수 있어요.
           </Text>
 
           {error && <Text style={styles.error}>{error}</Text>}
@@ -124,8 +131,8 @@ export default function AnalyzeRewardGateModal({
             {loading ? (
               <ActivityIndicator color={Colors.white} />
             ) : (
-              <Text style={[TextStyles.Bold16, styles.primaryButtonText]}>
-                광고 보고 저장 계속하기
+              <Text style={styles.primaryButtonText}>
+                광고 보고 장소 저장하기
               </Text>
             )}
           </Pressable>
@@ -135,13 +142,34 @@ export default function AnalyzeRewardGateModal({
             onPress={handleCancel}
             style={styles.secondaryButton}
           >
-            <Text style={[TextStyles.Bold16, styles.secondaryButtonText]}>
-              나중에 하기
-            </Text>
+            <Text style={styles.secondaryButtonText}>나중에 하기</Text>
           </Pressable>
         </View>
       </View>
     </Modal>
+  );
+}
+
+function delay(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function waitForExtractTicketReady(ticketId: string) {
+  const maxAttempts = 10;
+
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    const status = await getExtractTicketStatus(ticketId);
+
+    if (isExtractTicketVerified(status)) return;
+    if (isExtractTicketFailed(status)) {
+      throw new Error("광고 보상 확인에 실패했어요.");
+    }
+
+    await delay(1_000);
+  }
+
+  throw new Error(
+    "광고 보상 확인이 지연되고 있어요. 잠시 후 다시 시도해주세요.",
   );
 }
 
@@ -150,28 +178,31 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 24,
-    backgroundColor: "rgba(0,0,0,0.45)",
+    paddingHorizontal: 30,
+    backgroundColor: "rgba(0,0,0,0.58)",
   },
   card: {
     width: "100%",
-    maxWidth: 340,
-    borderRadius: 18,
-    paddingHorizontal: 22,
-    paddingVertical: 24,
+    maxWidth: 360,
+    borderRadius: 32,
+    paddingHorizontal: 30,
+    paddingTop: 58,
+    paddingBottom: 44,
     backgroundColor: Colors.white,
   },
   title: {
-    color: Colors.gray_900,
+    ...TextStyles.SemiBold24,
+    color: Colors.gray_800,
     textAlign: "center",
   },
   description: {
-    marginTop: 10,
+    ...TextStyles.Medium14,
+    marginTop: 22,
     color: Colors.gray_600,
     textAlign: "center",
   },
   error: {
-    marginTop: 12,
+    marginTop: 18,
     color: Colors.primary_600,
     fontFamily: "PretendardMedium",
     fontSize: 13,
@@ -179,26 +210,28 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   primaryButton: {
-    height: 48,
+    height: 84,
     alignItems: "center",
     justifyContent: "center",
-    marginTop: 22,
-    borderRadius: 10,
-    backgroundColor: Colors.primary_500,
+    marginTop: 54,
+    borderRadius: 14,
+    backgroundColor: Colors.gray_700,
   },
   buttonPressed: {
     opacity: 0.75,
   },
   primaryButtonText: {
+    ...TextStyles.Bold16,
     color: Colors.white,
   },
   secondaryButton: {
-    height: 44,
+    height: 40,
     alignItems: "center",
     justifyContent: "center",
-    marginTop: 8,
+    marginTop: 22,
   },
   secondaryButtonText: {
-    color: Colors.gray_500,
+    ...TextStyles.Bold16,
+    color: Colors.gray_300,
   },
 });

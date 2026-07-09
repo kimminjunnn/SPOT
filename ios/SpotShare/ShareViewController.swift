@@ -10,11 +10,12 @@ final class ShareViewController: UIViewController {
 
 
   private let baseURL = "http://3.34.94.184:8001"
+  private let eligibilityPath = "/extract/eligibility"
   private let analyzePath = "/analyze"
 
   // 디버그 모드
   private let debugMode = false
-  private let debugForceAdRequired = true
+  private let debugForceAdRequired = false
 
   // Universal Link / fallback scheme
   private let universalAnalyzeURL = "https://spot-universal.pages.dev/analyze-result"
@@ -53,8 +54,8 @@ final class ShareViewController: UIViewController {
 
       NSLog("[SpotShare] ✅ URL: \(urlString)")
 
-      // 3) analyze 호출
-      self.callAnalyze(url: urlString, token: token)
+      // 3) eligibility 확인 후 필요할 때만 analyze 호출
+      self.callExtractEligibility(url: urlString, token: token)
     }
   }
 
@@ -170,12 +171,15 @@ final class ShareViewController: UIViewController {
   private func saveLatestResult(_ json: String) {
     let d = UserDefaults(suiteName: suiteName)
     d?.set(json, forKey: latestResultKey)
+    d?.removeObject(forKey: "pendingAnalyzeUrl")
+    d?.removeObject(forKey: "pendingAnalyzeTicketId")
     d?.synchronize()
   }
 
-  private func savePendingAnalyzeUrl(_ url: String) {
+  private func savePendingAnalyze(url: String, ticketId: String) {
     let d = UserDefaults(suiteName: suiteName)
     d?.set(url, forKey: "pendingAnalyzeUrl")
+    d?.set(ticketId, forKey: "pendingAnalyzeTicketId")
     d?.synchronize()
   }
 
@@ -382,6 +386,92 @@ final class ShareViewController: UIViewController {
 
   // MARK: - API
 
+  private func callExtractEligibility(url: String, token: String) {
+    let endpoint = baseURL + eligibilityPath
+    NSLog("[SpotShare] callExtractEligibility start endpoint=\(endpoint)")
+
+    guard let reqURL = URL(string: endpoint) else {
+      NSLog("[SpotShare] ❌ 잘못된 endpoint: \(endpoint)")
+      showFailureUI()
+      return
+    }
+
+    showLoadingUI()
+
+    let config = URLSessionConfiguration.default
+    config.timeoutIntervalForRequest = 100
+    config.timeoutIntervalForResource = 100
+    let session = URLSession(configuration: config)
+
+    var request = URLRequest(url: reqURL)
+    request.httpMethod = "POST"
+    request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+    let cleanToken = token.trimmingCharacters(in: .whitespacesAndNewlines)
+    request.setValue("Bearer \(cleanToken)", forHTTPHeaderField: "Authorization")
+
+    let body: [String: Any] = ["url": url]
+    request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+
+    session.dataTask(with: request) { [weak self] data, response, error in
+      guard let self else { return }
+
+      if let error {
+        let ns = error as NSError
+        NSLog("[SpotShare] ❌ eligibility ERROR domain=\(ns.domain) code=\(ns.code) desc=\(ns.localizedDescription)")
+        self.showFailureUI()
+        return
+      }
+
+      let status = (response as? HTTPURLResponse)?.statusCode ?? -1
+      let raw = String(data: data ?? Data(), encoding: .utf8) ?? ""
+      NSLog("[SpotShare] ✅ eligibility status=\(status)")
+      NSLog("[SpotShare] ✅ eligibility body=\(raw)")
+
+      if self.debugMode {
+        self.showFailureUI()
+        return
+      }
+
+      guard status >= 200 && status < 300 else {
+        self.showFailureUI()
+        return
+      }
+
+      guard let eligibility = self.parseEligibilityResponse(raw) else {
+        NSLog("[SpotShare] ❌ eligibility 응답 파싱 실패")
+        self.showFailureUI()
+        return
+      }
+
+      if self.debugForceAdRequired || eligibility.needAd {
+        guard !eligibility.ticketId.isEmpty else {
+          NSLog("[SpotShare] ❌ ticket_id 없음")
+          self.showFailureUI()
+          return
+        }
+
+        self.savePendingAnalyze(url: url, ticketId: eligibility.ticketId)
+
+        Task { @MainActor in
+          self.forceOpenHostApp { success in
+            NSLog("[SpotShare] forceOpenHostApp for reward gate success=\(success)")
+
+            if success {
+              self.extensionContext?.completeRequest(returningItems: nil, completionHandler: nil)
+            } else {
+              self.showFailureUI()
+            }
+          }
+        }
+
+        return
+      }
+
+      self.callAnalyze(url: url, token: token)
+    }.resume()
+  }
+
   private func callAnalyze(url: String, token: String) {
     let endpoint = baseURL + analyzePath
     NSLog("[SpotShare] callAnalyze start endpoint=\(endpoint)")
@@ -456,24 +546,6 @@ final class ShareViewController: UIViewController {
       }
 
       if status >= 200 && status < 300 {
-        if self.debugForceAdRequired || self.isAdRequiredResponse(raw) {
-          self.savePendingAnalyzeUrl(url)
-
-          Task { @MainActor in
-            self.forceOpenHostApp { success in
-              NSLog("[SpotShare] forceOpenHostApp for reward gate success=\(success)")
-
-              if success {
-                self.extensionContext?.completeRequest(returningItems: nil, completionHandler: nil)
-              } else {
-                self.showFailureUI()
-              }
-            }
-          }
-
-          return
-        }
-
         self.saveLatestResult(raw)
 
         self.showLoadingUI()
@@ -499,14 +571,22 @@ final class ShareViewController: UIViewController {
     }.resume()
   }
 
-  private func isAdRequiredResponse(_ raw: String) -> Bool {
+  private struct EligibilityResponse {
+    let needAd: Bool
+    let ticketId: String
+  }
+
+  private func parseEligibilityResponse(_ raw: String) -> EligibilityResponse? {
     guard
       let data = raw.data(using: .utf8),
       let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
     else {
-      return false
+      return nil
     }
 
-    return json["status"] as? String == "AD_REQUIRED"
+    let needAd = json["need_ad"] as? Bool ?? false
+    let ticketId = json["ticket_id"] as? String ?? ""
+
+    return EligibilityResponse(needAd: needAd, ticketId: ticketId)
   }
 }

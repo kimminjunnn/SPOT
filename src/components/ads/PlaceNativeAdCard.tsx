@@ -10,6 +10,7 @@ import {
 
 import { Colors } from "@/src/styles/Colors";
 import { TextStyles } from "@/src/styles/TextStyles";
+import { getAdUnitId } from "@/src/lib/ads/adUnitIds";
 import {
   AD_CHOICES_RESERVED_SIZE,
   NATIVE_AD_VIEW_HEIGHT,
@@ -67,7 +68,10 @@ export default function PlaceNativeAdCard() {
         };
 
         loadedAd = await module.NativeAd.createForAdRequest(
-          __DEV__ ? module.TestIds.NATIVE : IOS_PLACE_NATIVE_AD_UNIT_ID,
+          getAdUnitId({
+            productionId: IOS_PLACE_NATIVE_AD_UNIT_ID,
+            testId: module.TestIds.NATIVE,
+          }),
           requestOptions,
         );
 
