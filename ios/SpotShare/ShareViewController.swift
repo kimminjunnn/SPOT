@@ -34,15 +34,7 @@ final class ShareViewController: UIViewController {
 
     NSLog("[SpotShare] viewDidLoad")
 
-    // 1) 토큰
-    let token = readToken()
-    if token.isEmpty {
-      NSLog("[SpotShare] ❌ accessToken 없음: analyze 호출 중단")
-      showFailureUI()
-      return
-    }
-
-    // 2) URL
+    // 로그인 여부와 관계없이 먼저 URL을 추출해 두어야 앱에서 이어서 처리할 수 있다.
     extractFirstURL { [weak self] urlString in
       guard let self else { return }
 
@@ -54,7 +46,14 @@ final class ShareViewController: UIViewController {
 
       NSLog("[SpotShare] ✅ URL: \(urlString)")
 
-      // 3) eligibility 확인 후 필요할 때만 analyze 호출
+      let token = self.readToken()
+      if token.isEmpty {
+        NSLog("[SpotShare] accessToken 없음: 앱 로그인 후 분석 재개")
+        self.handoffPendingAnalyzeToHostApp(url: urlString)
+        return
+      }
+
+      // eligibility 확인 후 필요할 때만 analyze 호출
       self.callExtractEligibility(url: urlString, token: token)
     }
   }
@@ -176,10 +175,20 @@ final class ShareViewController: UIViewController {
     d?.synchronize()
   }
 
-  private func savePendingAnalyze(url: String, ticketId: String) {
+  private func savePendingAnalyze(url: String, ticketId: String? = nil) {
     let d = UserDefaults(suiteName: suiteName)
     d?.set(url, forKey: "pendingAnalyzeUrl")
-    d?.set(ticketId, forKey: "pendingAnalyzeTicketId")
+    if let ticketId, !ticketId.isEmpty {
+      d?.set(ticketId, forKey: "pendingAnalyzeTicketId")
+    } else {
+      d?.removeObject(forKey: "pendingAnalyzeTicketId")
+    }
+    d?.synchronize()
+  }
+
+  private func clearSharedToken() {
+    let d = UserDefaults(suiteName: suiteName)
+    d?.removeObject(forKey: tokenKey)
     d?.synchronize()
   }
 
@@ -357,10 +366,27 @@ final class ShareViewController: UIViewController {
   @MainActor
   private func forceOpenHostApp(completion: @escaping (Bool) -> Void) {
     let candidates = [
-      universalAnalyzeURL,
-      schemeAnalyzeURL
+      schemeAnalyzeURL,
+      universalAnalyzeURL
     ]
     tryOpenCandidate(candidates, completion: completion)
+  }
+
+  private func handoffPendingAnalyzeToHostApp(url: String) {
+    savePendingAnalyze(url: url)
+    showLoadingUI()
+
+    Task { @MainActor in
+      self.forceOpenHostApp { success in
+        NSLog("[SpotShare] forceOpenHostApp for login success=\(success)")
+
+        if success {
+          self.extensionContext?.completeRequest(returningItems: nil, completionHandler: nil)
+        } else {
+          self.showFailureUI()
+        }
+      }
+    }
   }
 
   @MainActor
@@ -430,6 +456,13 @@ final class ShareViewController: UIViewController {
 
       if self.debugMode {
         self.showFailureUI()
+        return
+      }
+
+      if status == 401 {
+        NSLog("[SpotShare] eligibility accessToken 만료: 앱 로그인 후 분석 재개")
+        self.clearSharedToken()
+        self.handoffPendingAnalyzeToHostApp(url: url)
         return
       }
 
@@ -564,7 +597,9 @@ final class ShareViewController: UIViewController {
 
         return
       } else if status == 401 {
-        self.showFailureUI()
+        NSLog("[SpotShare] accessToken 만료: 앱 로그인 후 분석 재개")
+        self.clearSharedToken()
+        self.handoffPendingAnalyzeToHostApp(url: url)
       } else {
         self.showFailureUI()
       }

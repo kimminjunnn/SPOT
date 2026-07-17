@@ -10,12 +10,22 @@ import {
   useRouter,
   useSegments,
 } from "expo-router";
-import { useCallback, useEffect, useRef } from "react";
-import { AppState, NativeModules, Linking, Platform } from "react-native";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Alert, AppState, NativeModules, Linking, Platform } from "react-native";
 import { useAuthStore } from "@/src/stores/useAuthStore";
 import { useRegisterPushToken } from "@/src/hooks/useRegisterPushToken";
 import AnalyzeRewardGateModal from "@/src/components/ads/AnalyzeRewardGateModal";
+import AnalyzeLoadingBottomSheet from "@/src/components/ads/AnalyzeLoadingBottomSheet";
 import { useAnalyzeRewardGateStore } from "@/src/stores/useAnalyzeRewardGateStore";
+import { useAnalyzeResultStore } from "@/src/stores/useAnalyzeResultStore";
+import {
+  analyzeInstagramUrl,
+  checkExtractEligibility,
+} from "@/src/lib/api/analyze";
+import {
+  isAnalyzeAdRequired,
+  mapAnalyzeResponseToItems,
+} from "@/src/lib/analyze/analyzeResult";
 
 export default function RootLayout() {
   const token = useAuthStore((s) => s.token);
@@ -27,6 +37,9 @@ export default function RootLayout() {
   const segments = useSegments();
   const pendingAnalyzeTriggerRef = useRef(false);
   const didCheckInitialUrlRef = useRef(false);
+  const pendingAnalyzeResumeRef = useRef<Promise<boolean> | null>(null);
+  const [isResumingPendingAnalyze, setIsResumingPendingAnalyze] =
+    useState(false);
 
   useEffect(() => {
     hydrate();
@@ -91,7 +104,11 @@ export default function RootLayout() {
     }
   };
 
-  const openPendingAnalyzeRewardGate = useCallback(async () => {
+  const resumePendingAnalyze = useCallback(async () => {
+    if (pendingAnalyzeResumeRef.current) {
+      return pendingAnalyzeResumeRef.current;
+    }
+
     const { SharedStore } = NativeModules;
 
     if (!SharedStore?.getPendingAnalyzeUrl) {
@@ -99,51 +116,122 @@ export default function RootLayout() {
       return false;
     }
 
-    const pendingUrl = await SharedStore?.getPendingAnalyzeUrl?.();
-    const ticketId = await SharedStore?.getPendingAnalyzeTicketId?.();
+    const operation = (async () => {
+      const pendingUrl = await SharedStore.getPendingAnalyzeUrl();
 
-    if (typeof pendingUrl !== "string" || pendingUrl.length === 0) {
-      console.log("[AnalyzeRewardGate] pendingAnalyzeUrl empty");
-      return false;
+      if (typeof pendingUrl !== "string" || pendingUrl.length === 0) {
+        console.log("[AnalyzeRewardGate] pendingAnalyzeUrl empty");
+        return false;
+      }
+
+      if (!token) {
+        router.replace({
+          pathname: "/login",
+          params: {
+            returnTo: "/map",
+            intent: "analyze-result",
+          },
+        });
+        return true;
+      }
+
+      setIsResumingPendingAnalyze(true);
+
+      try {
+        const savedTicketId =
+          await SharedStore?.getPendingAnalyzeTicketId?.();
+
+        if (typeof savedTicketId === "string" && savedTicketId.length > 0) {
+          useAnalyzeRewardGateStore.getState().open(pendingUrl, savedTicketId);
+          router.replace("/(tabs)/map");
+          return true;
+        }
+
+        console.log("[AnalyzeRewardGate] resuming after login:", pendingUrl);
+        const eligibility = await checkExtractEligibility(pendingUrl);
+
+        if (eligibility.need_ad) {
+          if (!eligibility.ticket_id) {
+            throw new Error("추출 권한 티켓을 발급받지 못했습니다.");
+          }
+
+          await SharedStore?.setPendingAnalyzeTicketId?.(
+            eligibility.ticket_id,
+          );
+          useAnalyzeRewardGateStore
+            .getState()
+            .open(pendingUrl, eligibility.ticket_id);
+          router.replace("/(tabs)/map");
+          return true;
+        }
+
+        const analyzeResult = await analyzeInstagramUrl(pendingUrl);
+        if (isAnalyzeAdRequired(analyzeResult)) {
+          throw new Error("추가 저장 권한 확인이 필요합니다.");
+        }
+
+        const items = mapAnalyzeResponseToItems(analyzeResult);
+        if (!items.length) {
+          throw new Error("분석 결과에 저장 가능한 장소가 없습니다.");
+        }
+
+        useAnalyzeResultStore.getState().openWithPlaces(items, {
+          sourceUrl: pendingUrl,
+          receivedAt: Date.now(),
+        });
+        await SharedStore?.clearPendingAnalyzeUrl?.();
+        await SharedStore?.clearPendingAnalyzeTicketId?.();
+        router.replace("/(tabs)/map");
+        return true;
+      } catch (error) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : "로그인 후 장소 저장을 이어가지 못했어요.";
+
+        console.warn("[AnalyzeRewardGate] resume failed:", message);
+
+        // 401 인터셉터가 인증을 비운 경우 pending URL은 유지하고 재로그인한다.
+        if (!useAuthStore.getState().token) {
+          router.replace({
+            pathname: "/login",
+            params: {
+              returnTo: "/map",
+              intent: "analyze-result",
+            },
+          });
+          return true;
+        }
+
+        Alert.alert("저장 실패", message);
+        router.replace("/(tabs)/map");
+        return true;
+      } finally {
+        setIsResumingPendingAnalyze(false);
+      }
+    })();
+
+    pendingAnalyzeResumeRef.current = operation;
+
+    try {
+      return await operation;
+    } finally {
+      pendingAnalyzeResumeRef.current = null;
     }
-
-    if (typeof ticketId !== "string" || ticketId.length === 0) {
-      console.warn("[AnalyzeRewardGate] pendingAnalyzeTicketId empty");
-      await SharedStore?.clearPendingAnalyzeUrl?.();
-      await SharedStore?.clearPendingAnalyzeTicketId?.();
-      return false;
-    }
-
-    console.log("[AnalyzeRewardGate] pendingAnalyzeUrl found:", pendingUrl);
-    useAnalyzeRewardGateStore.getState().open(pendingUrl, ticketId);
-    return true;
-  }, []);
+  }, [router, token]);
 
   const handleAnalyzeTrigger = useCallback(async () => {
     if (!hasHydrated) return false;
 
-    if (!token) {
-      router.replace({
-        pathname: "/login",
-        params: {
-          returnTo: "/map",
-          intent: "analyze-result",
-        },
-      });
-      return true;
-    }
+    const resumed = await resumePendingAnalyze();
+    console.log("[AnalyzeRewardGate] handleAnalyzeTrigger resumed:", resumed);
 
-    const openedRewardGate = await openPendingAnalyzeRewardGate();
-    console.log("[AnalyzeRewardGate] handleAnalyzeTrigger opened:", openedRewardGate);
-
-    if (openedRewardGate) {
-      router.replace("/(tabs)/map");
-    } else {
+    if (!resumed) {
       router.replace("/analyze-result");
     }
 
     return true;
-  }, [hasHydrated, openPendingAnalyzeRewardGate, router, token]);
+  }, [hasHydrated, resumePendingAnalyze, router]);
 
   useEffect(() => {
     if (!hasHydrated || !pendingAnalyzeTriggerRef.current) return;
@@ -158,17 +246,16 @@ export default function RootLayout() {
     let alive = true;
 
     (async () => {
-      const opened = await openPendingAnalyzeRewardGate();
-      if (!alive || !opened) return;
+      const resumed = await resumePendingAnalyze();
+      if (!alive || !resumed) return;
 
-      router.replace("/(tabs)/map");
-      console.log("[AnalyzeRewardGate] initial pending check opened");
+      console.log("[AnalyzeRewardGate] initial pending check resumed");
     })();
 
     return () => {
       alive = false;
     };
-  }, [hasHydrated, openPendingAnalyzeRewardGate, router, token]);
+  }, [hasHydrated, resumePendingAnalyze, token]);
 
   // ✅ 딥링크 수신: 콜드 스타트 + 런타임 둘 다 처리
   useEffect(() => {
@@ -266,6 +353,7 @@ export default function RootLayout() {
             options={{ headerShown: false, presentation: "card" }}
           />
         </Stack>
+        <AnalyzeLoadingBottomSheet visible={isResumingPendingAnalyze} />
         <AnalyzeRewardGateModal sharedStore={NativeModules.SharedStore} />
       </BottomSheetModalProvider>
     </GestureHandlerRootView>

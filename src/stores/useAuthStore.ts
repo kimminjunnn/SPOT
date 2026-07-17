@@ -46,6 +46,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const raw = await AsyncStorage.getItem("auth");
       if (raw) {
         const parsed = JSON.parse(raw);
+        if (parsed.token) {
+          NativeModules.SharedStore?.setAccessToken?.(parsed.token);
+        }
         set({
           token: parsed.token ?? null,
           email: parsed.email ?? null,
