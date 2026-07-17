@@ -40,8 +40,10 @@ import { formatDistance } from "@/src/utils/format";
 import { useSavedPlacesStore } from "@/src/stores/useSavedPlacesStore";
 import { useSearchStore } from "@/src/stores/useSearchStore";
 import { usePlaceMoreStore } from "@/src/stores/usePlaceMoreStore";
+import { useLocationStore } from "@/src/stores/useLocationStore";
 
 import { openNaverMap } from "@/src/utils/openNaverMap";
+import { calculateDistanceMeters } from "@/src/utils/distance";
 import { CommentCard } from "@/src/components/comment/CommentCard";
 import SavedInfoCard from "@/src/components/place/SavedInfoCard";
 
@@ -88,6 +90,7 @@ export default function PlaceDetailScreen() {
   );
 
   const basePlace = usePlaceMoreStore((s) => s.basePlace);
+  const currentCoords = useLocationStore((s) => s.coords);
 
   const [currentPage, setCurrentPage] = useState(1);
   const [place, setPlace] = useState<ApiPlace | null>(null);
@@ -148,16 +151,44 @@ export default function PlaceDetailScreen() {
     });
   }, [topImageKey]);
 
+  // 라우트의 lat/lng는 선택한 장소 좌표다. 지도에는 이 좌표를 사용하고,
+  // 거리 계산 및 /more 요청에는 currentCoords를 별도로 사용한다.
+  const mapLat = useMemo(() => {
+    const routeLat = Number(lat);
+    if (Number.isFinite(routeLat)) return routeLat;
+
+    const fallbackLat = Number(place?.latitude ?? basePlace?.lat);
+    return Number.isFinite(fallbackLat) ? fallbackLat : null;
+  }, [lat, place?.latitude, basePlace?.lat]);
+
+  const mapLng = useMemo(() => {
+    const routeLng = Number(lng);
+    if (Number.isFinite(routeLng)) return routeLng;
+
+    const fallbackLng = Number(place?.longitude ?? basePlace?.lng);
+    return Number.isFinite(fallbackLng) ? fallbackLng : null;
+  }, [lng, place?.longitude, basePlace?.lng]);
+
+  const calculatedDistanceM = useMemo(() => {
+    if (currentCoords == null || mapLat == null || mapLng == null) {
+      return undefined;
+    }
+
+    return calculateDistanceMeters(
+      currentCoords.lat,
+      currentCoords.lng,
+      mapLat,
+      mapLng,
+    );
+  }, [currentCoords, mapLat, mapLng]);
+
   const display = {
     name: place?.name ?? basePlace?.name ?? "알 수 없는 장소",
     category: place?.list ?? basePlace?.category ?? "",
     address: place?.address ?? basePlace?.address ?? "",
     ratingAvg: place?.ratingAvg ?? basePlace?.ratingAvg ?? null,
     ratingCount: place?.ratingCount ?? basePlace?.ratingCount ?? null,
-    distance:
-      typeof place?.distance === "number"
-        ? place.distance
-        : basePlace?.distanceM,
+    distance: calculatedDistanceM ?? basePlace?.distanceM,
     savers: place?.savers ?? basePlace?.savers ?? [],
     isBookmarked: place?.isMarked ?? basePlace?.isBookmarked ?? false,
   };
@@ -167,16 +198,6 @@ export default function PlaceDetailScreen() {
       ? formatDistance(display.distance)
       : undefined;
 
-  const mapLat = useMemo(() => {
-    const parsed = Number(lat);
-    return Number.isFinite(parsed) ? parsed : null;
-  }, [lat]);
-
-  const mapLng = useMemo(() => {
-    const parsed = Number(lng);
-    return Number.isFinite(parsed) ? parsed : null;
-  }, [lng]);
-
   const hasValidCoords = mapLat !== null && mapLng !== null;
 
   useEffect(() => {
@@ -184,14 +205,14 @@ export default function PlaceDetailScreen() {
   }, [display.isBookmarked]);
 
   useEffect(() => {
-    if (!placeId || !lat || !lng) return;
+    if (!placeId || currentCoords == null) return;
 
     const load = async () => {
       try {
         const data = await fetchPlaceMore({
           placeId: Number(placeId),
-          lat: Number(lat),
-          lng: Number(lng),
+          lat: currentCoords.lat,
+          lng: currentCoords.lng,
         });
 
         setPlace(data.places);
@@ -204,7 +225,7 @@ export default function PlaceDetailScreen() {
     };
 
     load();
-  }, [placeId, lat, lng]);
+  }, [placeId, currentCoords]);
 
   const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const offsetX = event.nativeEvent.contentOffset.x;

@@ -36,16 +36,20 @@ export function mapApiPlaceToPlace(
 
   const lat = Number(it.latitude);
   const lng = Number(it.longitude);
-  const serverDistance =
+  const serverDistanceKm =
     typeof it.distance === "number" && Number.isFinite(it.distance)
       ? it.distance
       : undefined;
+  const serverDistanceM =
+    serverDistanceKm != null ? Math.round(serverDistanceKm * 1000) : undefined;
 
   const calculatedDistanceM =
     currentLat != null && currentLng != null && isFinite(lat) && isFinite(lng)
       ? calculateDistanceMeters(currentLat, currentLng, lat, lng)
       : undefined;
-  const distanceM = serverDistance ?? calculatedDistanceM;
+  // API의 distance는 km 단위인 반면 Place.distanceM은 미터 단위다.
+  // 현재 좌표가 있으면 클라이언트 계산값을 우선 사용한다.
+  const distanceM = calculatedDistanceM ?? serverDistanceM;
 
   const placeId =
     typeof it.placeId === "number" && Number.isFinite(it.placeId)
