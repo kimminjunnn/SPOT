@@ -9,7 +9,7 @@ export type AnalyzeApiResult = {
   address?: string;
   latitude?: number;
   longitude?: number;
-  photo?: string;
+  photo?: string | string[] | null;
 };
 
 export type AnalyzeApiResponse = {
@@ -36,6 +36,17 @@ export function normalizeAnalyzeResults(
   });
 }
 
+function getAnalyzeThumbnail(
+  photo: AnalyzeApiResult["photo"],
+): string | undefined {
+  const candidates = Array.isArray(photo) ? photo : [photo];
+
+  return candidates.find(
+    (candidate): candidate is string =>
+      typeof candidate === "string" && candidate.trim().length > 0,
+  );
+}
+
 export function mapAnalyzeResponseToItems(
   response: AnalyzeApiResponse,
 ): SavePlaceItem[] {
@@ -56,7 +67,7 @@ export function mapAnalyzeResponseToItems(
         name: item.name ?? "이름 없음",
         category: item.category ?? "unknown",
         address: item.address ?? "주소 없음",
-        thumbUrl: item.photo,
+        thumbUrl: getAnalyzeThumbnail(item.photo),
       };
     });
 }
