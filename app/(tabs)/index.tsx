@@ -3,7 +3,8 @@ import React, { useEffect, useRef, useState, useCallback } from "react";
 import { SafeAreaView, StyleSheet, View, Animated } from "react-native";
 
 // Routing
-import { useFocusEffect } from "expo-router";
+import { useFocusEffect, useNavigation } from "expo-router";
+import type { BottomTabNavigationProp } from "@react-navigation/bottom-tabs";
 
 // types and constants
 import {
@@ -54,6 +55,12 @@ import { useAutoHideHeader } from "@/src/hooks/useAutoHideHeader";
 // Styles
 import { Colors } from "@/src/styles/Colors";
 
+type RootTabParamList = {
+  index: undefined;
+  map: undefined;
+  profile: undefined;
+};
+
 export default function Home() {
   const [selectedUser, setSelectedUser] = useState<StorySelectedUser | null>(
     null,
@@ -63,6 +70,10 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState<HomeTabKey>("map");
   const [markers, setMarkers] = useState<HomeMarker[]>([]);
   const [placeList, setPlaceList] = useState<HomePlaceItem[]>([]);
+  const [homeRefreshKey, setHomeRefreshKey] = useState(0);
+
+  const navigation =
+    useNavigation<BottomTabNavigationProp<RootTabParamList, "index">>();
 
   const token = useAuthStore((state) => state.token);
   const hasHydrated = useAuthStore((state) => state.hasHydrated);
@@ -94,6 +105,29 @@ export default function Home() {
     handleScrollDirection,
     showHeader,
   } = useAutoHideHeader();
+
+  useEffect(() => {
+    return navigation.addListener("tabPress", () => {
+      // 다른 탭에서 홈으로 진입하는 일반 탭 클릭은 기존 흐름을 유지한다.
+      if (!navigation.isFocused()) return;
+
+      setSelectedUser(null);
+      setScope({ type: "friends" });
+      setActiveTab("map");
+      setSelectedPlaceId(null);
+      setMarkers([]);
+      setPlaceList([]);
+      setDidInitCamera(false);
+      unfocusPlace();
+      showHeader();
+      setHomeRefreshKey((current) => current + 1);
+
+      // 이미 MAP 화면이었다면 activeTab이 바뀌지 않아 위치 effect가 재실행되지 않는다.
+      if (activeTab === "map") {
+        void refreshOnce?.();
+      }
+    });
+  }, [activeTab, navigation, refreshOnce, showHeader, unfocusPlace]);
 
   useEffect(() => {
     showHeader();
@@ -255,7 +289,7 @@ export default function Home() {
     return () => {
       cancelled = true;
     };
-  }, [activeTab, scope, lat, lng]);
+  }, [activeTab, scope, lat, lng, homeRefreshKey]);
 
   const handleTogglePlaceBookmark = useCallback(
     async (place: HomePlaceItem) => {
