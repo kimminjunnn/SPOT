@@ -41,6 +41,7 @@ import {
   type BookmarkSource,
 } from "@/src/lib/api/bookmark";
 import { fetchPlaceDetail } from "@/src/lib/api/search";
+import { fetchPlaceMore } from "@/src/lib/api/places";
 
 // Stores
 import { useAuthStore } from "@/src/stores/useAuthStore";
@@ -409,29 +410,44 @@ export default function Home() {
   const handlePressMapMarker = async (marker: HomeMarker) => {
     if (lat == null || lng == null) return;
 
-    const raw = marker.raw ?? {};
-    const placeId = raw.placeId ?? raw.id;
-    const gid = getHomeMarkerGid(marker);
+    const placeId = getHomeMarkerPlaceId(marker);
+    let gid = getHomeMarkerGid(marker);
 
-    if (typeof placeId !== "number" || !Number.isFinite(placeId)) {
-      console.warn(
-        "[Home.MapTab] placeId is missing, cannot load place detail",
-      );
-      return;
+    console.log("[Home.MapTab] marker pressed", {
+      markerKey: marker.key,
+      placeId,
+      hasGid: gid != null,
+    });
+
+    if (placeId != null) {
+      setSelectedPlaceId(placeId);
     }
 
-    setSelectedPlaceId(placeId);
+    if (!gid && placeId != null) {
+      try {
+        const more = await fetchPlaceMore({ placeId, lat, lng });
+        gid = normalizeGid(more.places?.gId);
+      } catch (e: any) {
+        console.error("[Home.MapTab] failed to resolve gid", {
+          placeId,
+          message: e?.message,
+          status: e?.response?.status,
+        });
+        return;
+      }
+    }
 
     if (!gid) {
       console.warn("[Home.MapTab] gid is missing, cannot load search detail", {
+        markerKey: marker.key,
         placeId,
-        raw,
       });
       return;
     }
 
     try {
       const detail = await fetchPlaceDetail({ gid, lat, lng });
+      setSelectedPlaceId(detail.placeId);
       focusPlace(detail);
 
       if (Number.isFinite(detail.lat) && Number.isFinite(detail.lng)) {
@@ -554,12 +570,21 @@ function getHomePlaceId(place: HomePlaceItem) {
 
 function getHomeMarkerGid(marker: HomeMarker) {
   const raw = marker.raw ?? {};
-  const gid = raw.gid ?? raw.gId ?? raw.g_id;
+  return normalizeGid(raw.gid ?? raw.gId ?? raw.g_id);
+}
 
+function normalizeGid(gid: unknown) {
   if (gid == null) return null;
 
   const normalized = String(gid).trim();
   return normalized.length > 0 ? normalized : null;
+}
+
+function getHomeMarkerPlaceId(marker: HomeMarker) {
+  const raw = marker.raw ?? {};
+  const placeId = Number(raw.placeId ?? raw.id);
+
+  return Number.isFinite(placeId) ? placeId : null;
 }
 
 function getBookmarkSource(scope: HomeScope): BookmarkSource {

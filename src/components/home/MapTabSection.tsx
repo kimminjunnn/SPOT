@@ -85,11 +85,9 @@ export const MapTabSection = ({
 
 function getMarkerPlaceId(marker: HomeMarker) {
   const raw = marker.raw ?? {};
-  const placeId = raw.placeId ?? raw.id;
+  const placeId = Number(raw.placeId ?? raw.id);
 
-  return typeof placeId === "number" && Number.isFinite(placeId)
-    ? placeId
-    : null;
+  return Number.isFinite(placeId) ? placeId : null;
 }
 
 const styles = StyleSheet.create({
