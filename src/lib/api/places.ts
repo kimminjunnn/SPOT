@@ -63,6 +63,7 @@ export async function fetchHotPlaces(params: {
   const res = await api8080.get<ApiPlace[]>("/popular", {
     params: { lat, lng, page, size },
   });
+  console.log(res.data);
 
   return mapApiPlacesToPlaces(res.data, {
     currentLat: lat,
