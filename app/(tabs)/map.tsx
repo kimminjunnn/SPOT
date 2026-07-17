@@ -202,6 +202,7 @@ export default function Map() {
       await savePlaces({
         placeIds,
         saveType: "instagram",
+        sourceType: "instagram",
       });
 
       clearAnalyze();

@@ -123,20 +123,32 @@ export async function fetchPlaceMore(params: {
   }
 }
 
-/** 8001 /places/ 장소 저장 */
+/** 8001 /places 장소 저장 */
 export async function savePlaces(params: {
   placeIds: number[];
-  saveType?: "instagram";
+  saveType: "instagram" | "spot";
+  sourceType: "instagram" | "search" | "friend_profile" | "comment";
+  sourceUserId?: number | null;
+  sourceCommentId?: number | null;
 }): Promise<void> {
-  const { placeIds, saveType = "instagram" } = params;
+  const {
+    placeIds,
+    saveType,
+    sourceType,
+    sourceUserId = null,
+    sourceCommentId = null,
+  } = params;
 
   try {
-    await api8001.post("/places/", {
+    await api8001.post("/places", {
       place_ids: placeIds,
       save_type: saveType,
+      source_type: sourceType,
+      source_user_id: sourceUserId,
+      source_comment_id: sourceCommentId,
     });
   } catch (err: any) {
-    console.error("[POST /places/] ERROR", {
+    console.error("[POST /places] ERROR", {
       message: err?.message,
       status: err?.response?.status,
       data: err?.response?.data,

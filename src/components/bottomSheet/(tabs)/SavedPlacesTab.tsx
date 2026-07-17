@@ -135,7 +135,14 @@ export default function SavedPlacesTab() {
 
       // 2) API 호출
       try {
-        await toggleBookmarkApi(place.placeId);
+        const serverMarked = await toggleBookmarkApi(place.placeId, {
+          sourceType: "search",
+        });
+        const finalMarked = serverMarked ?? willBookmark;
+
+        if (finalMarked !== willBookmark) {
+          applyBookmarkFromPlace(place, finalMarked);
+        }
       } catch (err) {
         console.error("[SavedPlacesTab] toggleBookmark failed:", err);
         // 3) 실패 시 강제 동기화

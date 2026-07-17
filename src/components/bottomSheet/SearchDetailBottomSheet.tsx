@@ -9,10 +9,17 @@ import { Colors } from "@/src/styles/Colors";
 import PlaceCard from "@/src/components/common/PlaceCard";
 import { formatDistance } from "@/src/utils/format"; // ✅ 공통 util 사용
 import { getPlaceCardSaverProps } from "@/src/lib/mappers/placeCardSavers";
+import type { BookmarkSource } from "@/src/lib/api/bookmark";
 
-type Props = { onClose: () => void };
+type Props = {
+  onClose: () => void;
+  bookmarkSource?: BookmarkSource;
+};
 
-export default function SearchDetailBottomSheet({ onClose }: Props) {
+export default function SearchDetailBottomSheet({
+  onClose,
+  bookmarkSource = { sourceType: "search" },
+}: Props) {
   const sheetRef = useRef<BottomSheet>(null);
   const focused = useSearchStore((s) => s.focused);
   const toggleBookmark = useSearchStore((s) => s.toggleBookmark);
@@ -101,7 +108,7 @@ export default function SearchDetailBottomSheet({ onClose }: Props) {
           showBookmark={true}
           isBookmarked={!!isBookmarked}
           distanceText={distanceText}
-          onToggleBookmark={() => toggleBookmark(placeId)}
+          onToggleBookmark={() => toggleBookmark(placeId, bookmarkSource)}
           onPress={() =>
             router.push({
               pathname: "/place/[placeId]",
@@ -109,6 +116,15 @@ export default function SearchDetailBottomSheet({ onClose }: Props) {
                 placeId: String(placeId),
                 lat: String(focused.lat),
                 lng: String(focused.lng),
+                sourceType: bookmarkSource.sourceType,
+                sourceUserId:
+                  bookmarkSource.sourceUserId != null
+                    ? String(bookmarkSource.sourceUserId)
+                    : undefined,
+                sourceCommentId:
+                  bookmarkSource.sourceCommentId != null
+                    ? String(bookmarkSource.sourceCommentId)
+                    : undefined,
               },
             })
           }

@@ -17,6 +17,7 @@ import { formatDistance } from "@/src/utils/format";
 import { getPlaceCardSaverProps } from "@/src/lib/mappers/placeCardSavers";
 import PlaceNativeAdCard from "@/src/components/ads/PlaceNativeAdCard";
 import { insertAdSlots } from "@/src/lib/ads/insertAdSlots";
+import type { BookmarkSource } from "@/src/lib/api/bookmark";
 
 const SORT_OPTIONS = [
   { label: "최신순", value: "latest" },
@@ -37,6 +38,7 @@ const CATEGORY_OPTIONS = [
 type PlaceTabSectionProps = {
   placeList: HomePlaceItem[];
   currentCoords?: { lat: number; lng: number } | null;
+  bookmarkSource: BookmarkSource;
   onScrollDirection?: (direction: "up" | "down") => void;
   onToggleBookmark?: (place: HomePlaceItem) => void;
 };
@@ -59,6 +61,7 @@ const BOTTOM_BOUNCE_UP_IGNORE_THRESHOLD = 20;
 export const PlaceTabSection = ({
   placeList,
   currentCoords,
+  bookmarkSource,
   onScrollDirection,
   onToggleBookmark,
 }: PlaceTabSectionProps) => {
@@ -209,6 +212,15 @@ export const PlaceTabSection = ({
                     placeId: String(placeId),
                     lat: p.lat,
                     lng: p.lng,
+                    sourceType: bookmarkSource.sourceType,
+                    sourceUserId:
+                      bookmarkSource.sourceUserId != null
+                        ? String(bookmarkSource.sourceUserId)
+                        : undefined,
+                    sourceCommentId:
+                      bookmarkSource.sourceCommentId != null
+                        ? String(bookmarkSource.sourceCommentId)
+                        : undefined,
                   },
                 });
               }}

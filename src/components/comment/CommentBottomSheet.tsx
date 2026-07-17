@@ -22,7 +22,10 @@ import BottomSheet, {
   BottomSheetBackdrop,
 } from "@gorhom/bottom-sheet";
 import Animated, { useSharedValue } from "react-native-reanimated";
-import { toggleBookmarkApi } from "@/src/lib/api/bookmark";
+import {
+  toggleBookmarkApi,
+  type BookmarkSource,
+} from "@/src/lib/api/bookmark";
 import { Colors } from "@/src/styles/Colors";
 import { TextStyles } from "@/src/styles/TextStyles";
 
@@ -77,6 +80,7 @@ type Props = {
   onRetry?: () => void;
   onClose?: () => void;
   onOpen?: () => void;
+  bookmarkSource?: BookmarkSource;
 };
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
@@ -92,7 +96,17 @@ const safeUri = (u?: string | string[] | null) => {
 
 const CommentBottomSheet = forwardRef<CommentBottomSheetHandle, Props>(
   (
-    { placeId, place, comments, loading, error, onRetry, onClose, onOpen },
+    {
+      placeId,
+      place,
+      comments,
+      loading,
+      error,
+      onRetry,
+      onClose,
+      onOpen,
+      bookmarkSource = { sourceType: "search" },
+    },
     ref,
   ) => {
     const bottomSheetRef = useRef<BottomSheet>(null);
@@ -135,7 +149,11 @@ const CommentBottomSheet = forwardRef<CommentBottomSheetHandle, Props>(
       setBookmarkedUi(next);
 
       try {
-        await toggleBookmarkApi(place.placeId);
+        const serverMarked = await toggleBookmarkApi(
+          place.placeId,
+          bookmarkSource,
+        );
+        setBookmarkedUi(serverMarked ?? next);
       } catch {
         // ❌ 실패 시 롤백
         setBookmarkedUi(!next);
@@ -155,6 +173,15 @@ const CommentBottomSheet = forwardRef<CommentBottomSheetHandle, Props>(
         pathname: "/place/[placeId]",
         params: {
           placeId: String(place.placeId),
+          sourceType: bookmarkSource.sourceType,
+          sourceUserId:
+            bookmarkSource.sourceUserId != null
+              ? String(bookmarkSource.sourceUserId)
+              : undefined,
+          sourceCommentId:
+            bookmarkSource.sourceCommentId != null
+              ? String(bookmarkSource.sourceCommentId)
+              : undefined,
         },
       });
     };

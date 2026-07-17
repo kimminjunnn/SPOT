@@ -108,7 +108,14 @@ export default function HotPlacesTab() {
 
       // 2) API 호출
       try {
-        await toggleBookmarkApi(place.placeId);
+        const serverMarked = await toggleBookmarkApi(place.placeId, {
+          sourceType: "search",
+        });
+        const finalMarked = serverMarked ?? willBookmark;
+
+        if (finalMarked !== willBookmark) {
+          applyHotBookmarkFromPlace(place, finalMarked);
+        }
       } catch (err) {
         console.error("[HotPlacesTab] toggleBookmark failed:", err);
 

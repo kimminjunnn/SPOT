@@ -35,7 +35,10 @@ import {
   fetchHomePlacesUser,
   fetchHomeUser,
 } from "@/src/lib/api/home";
-import { toggleBookmarkApi } from "@/src/lib/api/bookmark";
+import {
+  toggleBookmarkApi,
+  type BookmarkSource,
+} from "@/src/lib/api/bookmark";
 import { fetchPlaceDetail } from "@/src/lib/api/search";
 
 // Stores
@@ -254,38 +257,53 @@ export default function Home() {
     };
   }, [activeTab, scope, lat, lng]);
 
-  const handleTogglePlaceBookmark = useCallback(async (place: HomePlaceItem) => {
-    const placeId = getHomePlaceId(place);
+  const handleTogglePlaceBookmark = useCallback(
+    async (place: HomePlaceItem) => {
+      const placeId = getHomePlaceId(place);
 
-    if (placeId == null) {
-      console.warn("[Home.PlaceTab] placeId is null, cannot toggle bookmark");
-      return;
-    }
+      if (placeId == null) {
+        console.warn("[Home.PlaceTab] placeId is null, cannot toggle bookmark");
+        return;
+      }
 
-    const previousMarked = place.marked;
-    const nextMarked = !previousMarked;
+      const previousMarked = place.marked;
+      const nextMarked = !previousMarked;
 
-    setPlaceList((current) =>
-      current.map((item) =>
-        getHomePlaceId(item) === placeId
-          ? { ...item, marked: nextMarked }
-          : item,
-      ),
-    );
-
-    try {
-      await toggleBookmarkApi(placeId);
-    } catch (error) {
-      console.error("[Home.PlaceTab] toggleBookmark failed:", error);
       setPlaceList((current) =>
         current.map((item) =>
           getHomePlaceId(item) === placeId
-            ? { ...item, marked: previousMarked }
+            ? { ...item, marked: nextMarked }
             : item,
         ),
       );
-    }
-  }, []);
+
+      try {
+        const serverMarked = await toggleBookmarkApi(
+          placeId,
+          getBookmarkSource(scope),
+        );
+        const finalMarked = serverMarked ?? nextMarked;
+
+        setPlaceList((current) =>
+          current.map((item) =>
+            getHomePlaceId(item) === placeId
+              ? { ...item, marked: finalMarked }
+              : item,
+          ),
+        );
+      } catch (error) {
+        console.error("[Home.PlaceTab] toggleBookmark failed:", error);
+        setPlaceList((current) =>
+          current.map((item) =>
+            getHomePlaceId(item) === placeId
+              ? { ...item, marked: previousMarked }
+              : item,
+          ),
+        );
+      }
+    },
+    [scope],
+  );
 
   useEffect(() => {
     if (activeTab !== "place") return;
@@ -459,6 +477,7 @@ export default function Home() {
             <PlaceTabSection
               placeList={placeList}
               currentCoords={coords}
+              bookmarkSource={getBookmarkSource(scope)}
               onScrollDirection={handleScrollDirection}
               onToggleBookmark={handleTogglePlaceBookmark}
             />
@@ -476,6 +495,7 @@ export default function Home() {
 
       {activeTab === "map" && focusedPlace ? (
         <SearchDetailBottomSheet
+          bookmarkSource={getBookmarkSource(scope)}
           onClose={() => {
             setSelectedPlaceId(null);
             unfocusPlace();
@@ -506,6 +526,12 @@ function getHomeMarkerGid(marker: HomeMarker) {
 
   const normalized = String(gid).trim();
   return normalized.length > 0 ? normalized : null;
+}
+
+function getBookmarkSource(scope: HomeScope): BookmarkSource {
+  return scope.type === "friend"
+    ? { sourceType: "friend_profile", sourceUserId: scope.userId }
+    : { sourceType: "search" };
 }
 
 const styles = StyleSheet.create({

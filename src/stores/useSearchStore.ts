@@ -1,6 +1,9 @@
 import { create } from "zustand";
 import type { Place } from "@/src/types/place";
-import { toggleBookmarkApi } from "@/src/lib/api/bookmark";
+import {
+  toggleBookmarkApi,
+  type BookmarkSource,
+} from "@/src/lib/api/bookmark";
 import { useSavedPlacesStore } from "@/src/stores/useSavedPlacesStore";
 
 export type Saver = {
@@ -37,7 +40,10 @@ type State = {
   clearPendingDetail: () => void;
 
   // 🔹 북마크 토글 액션
-  toggleBookmark: (placeId: number | null) => Promise<void> | void;
+  toggleBookmark: (
+    placeId: number | null,
+    source?: BookmarkSource,
+  ) => Promise<void> | void;
 
   syncBookmarkByPlaceId: (placeId: number, nextBookmarked: boolean) => void;
 };
@@ -82,7 +88,7 @@ export const useSearchStore = create<State>((set, get) => ({
   clearPendingDetail: () => set({ pendingDetailGid: null }),
 
   // ✅ 북마크 토글
-  toggleBookmark: async (placeId) => {
+  toggleBookmark: async (placeId, source = { sourceType: "search" }) => {
     const { items, focused } = get();
 
     console.log("[bookmark] called with", {
@@ -128,15 +134,31 @@ export const useSearchStore = create<State>((set, get) => ({
 
     // 2) API 호출
     try {
-      await toggleBookmarkApi(placeId);
+      const serverMarked = await toggleBookmarkApi(placeId, source);
+      const finalMarked = serverMarked ?? willBookmark;
+
+      if (finalMarked !== willBookmark) {
+        set((state) => ({
+          ...state,
+          items: state.items.map((p) =>
+            p.placeId === placeId
+              ? { ...p, isBookmarked: finalMarked }
+              : p,
+          ),
+          focused:
+            state.focused && state.focused.placeId === placeId
+              ? { ...state.focused, isBookmarked: finalMarked }
+              : state.focused,
+        }));
+      }
 
       // SavedPlacesStore에도 반영
       const { applyBookmarkFromPlace } = useSavedPlacesStore.getState();
-      applyBookmarkFromPlace(target, willBookmark);
+      applyBookmarkFromPlace(target, finalMarked);
 
       console.log("[searchStore] toggleBookmark success", {
         placeId,
-        willBookmark,
+        isMarked: finalMarked,
       });
     } catch (err) {
       console.error("[searchStore] toggleBookmark failed", err);

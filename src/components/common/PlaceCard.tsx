@@ -137,7 +137,8 @@ export default function PlaceCard({
         {showBookmark && (
           <Pressable
             style={styles.bookmarkPressable}
-            onPress={() => {
+            onPress={(event) => {
+              event.stopPropagation();
               onToggleBookmark?.();
             }}
             hitSlop={8}

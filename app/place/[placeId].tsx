@@ -29,7 +29,11 @@ import CommentWriteModal, {
 import SpotButton from "@/src/components/common/SpotButton";
 
 import { fetchPlaceMore } from "@/src/lib/api/places";
-import { toggleBookmarkApi } from "@/src/lib/api/bookmark";
+import {
+  toggleBookmarkApi,
+  type BookmarkSource,
+  type BookmarkSourceType,
+} from "@/src/lib/api/bookmark";
 import type { ApiPlace, ApiPlaceComment } from "@/src/types/place";
 import { formatDistance } from "@/src/utils/format";
 
@@ -64,11 +68,24 @@ const normalizePhotoList = (...sources: unknown[]): string[] => {
 };
 
 export default function PlaceDetailScreen() {
-  const { placeId, lat, lng } = useLocalSearchParams<{
-    placeId: string;
-    lat?: string;
-    lng?: string;
-  }>();
+  const { placeId, lat, lng, sourceType, sourceUserId, sourceCommentId } =
+    useLocalSearchParams<{
+      placeId: string;
+      lat?: string;
+      lng?: string;
+      sourceType?: string;
+      sourceUserId?: string;
+      sourceCommentId?: string;
+    }>();
+
+  const bookmarkSource = useMemo<BookmarkSource>(
+    () => ({
+      sourceType: isBookmarkSourceType(sourceType) ? sourceType : "search",
+      sourceUserId: parseOptionalId(sourceUserId),
+      sourceCommentId: parseOptionalId(sourceCommentId),
+    }),
+    [sourceType, sourceUserId, sourceCommentId],
+  );
 
   const basePlace = usePlaceMoreStore((s) => s.basePlace);
 
@@ -223,19 +240,31 @@ export default function PlaceDetailScreen() {
     setBookmarkLoading(true);
 
     try {
-      await toggleBookmarkApi(numericPlaceId);
+      const serverMarked = await toggleBookmarkApi(
+        numericPlaceId,
+        bookmarkSource,
+      );
+      const finalMarked = serverMarked ?? next;
+
+      setLocalBookmarked(finalMarked);
 
       const syncTarget =
         basePlace && basePlace.placeId === numericPlaceId
-          ? { ...basePlace, isBookmarked: next }
+          ? { ...basePlace, isBookmarked: finalMarked }
           : null;
 
       if (syncTarget) {
-        useSavedPlacesStore.getState().applyBookmarkFromPlace(syncTarget, next);
+        useSavedPlacesStore
+          .getState()
+          .applyBookmarkFromPlace(syncTarget, finalMarked);
       }
 
-      useSearchStore.getState().syncBookmarkByPlaceId(numericPlaceId, next);
-      usePlaceMoreStore.getState().syncBookmarkByPlaceId(numericPlaceId, next);
+      useSearchStore
+        .getState()
+        .syncBookmarkByPlaceId(numericPlaceId, finalMarked);
+      usePlaceMoreStore
+        .getState()
+        .syncBookmarkByPlaceId(numericPlaceId, finalMarked);
     } catch (e) {
       console.error("[PlaceDetailScreen] bookmark toggle error:", e);
       setLocalBookmarked(prev);
@@ -357,6 +386,22 @@ export default function PlaceDetailScreen() {
       <CommentWriteModal ref={commentModalRef} placeId={Number(placeId)} /> */}
     </View>
   );
+}
+
+function isBookmarkSourceType(value?: string): value is BookmarkSourceType {
+  return (
+    value === "instagram" ||
+    value === "search" ||
+    value === "friend_profile" ||
+    value === "comment"
+  );
+}
+
+function parseOptionalId(value?: string): number | null {
+  if (value == null || value.trim() === "") return null;
+
+  const parsed = Number(value);
+  return Number.isInteger(parsed) ? parsed : null;
 }
 
 const styles = StyleSheet.create({

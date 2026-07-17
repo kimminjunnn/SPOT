@@ -34,6 +34,7 @@ export default function SearchDetailsBottomSheet({
   const items = useSearchStore((s) => s.items);
   const error = useSearchStore((s) => s.error);
   const focus = useSearchStore((s) => s.focus);
+  const toggleBookmark = useSearchStore((s) => s.toggleBookmark);
 
   const snapPoints = useMemo(() => ["6.7%", "50%", "75%"], []);
 
@@ -153,6 +154,9 @@ export default function SearchDetailsBottomSheet({
                 reviewCount={p.ratingCount ?? undefined}
                 showBookmark={true}
                 isBookmarked={p.isBookmarked}
+                onToggleBookmark={() =>
+                  toggleBookmark(p.placeId, { sourceType: "search" })
+                }
                 onPress={() =>
                   router.push({
                     pathname: "/place/[placeId]",
@@ -160,6 +164,7 @@ export default function SearchDetailsBottomSheet({
                       placeId: String(p.id),
                       lat: String(p.lat),
                       lng: String(p.lng),
+                      sourceType: "search",
                     },
                   })
                 }
