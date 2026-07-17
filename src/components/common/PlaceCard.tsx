@@ -161,7 +161,11 @@ export default function PlaceCard({
           style={styles.placecardMarker}
           source={require("@/assets/images/placecard-marker.png")}
         />
-        <Text style={[TextStyles.Regular12, { color: Colors.gray_900 }]}>
+        <Text
+          style={styles.addressText}
+          numberOfLines={3}
+          ellipsizeMode="tail"
+        >
           {address}
         </Text>
         {!!distanceText && (
@@ -278,7 +282,7 @@ const styles = StyleSheet.create({
   },
   addressContainer: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     marginBottom: 14.9,
   },
 
@@ -286,12 +290,19 @@ const styles = StyleSheet.create({
     width: 12.15,
     height: 12.15,
     marginRight: 1.92,
+    marginTop: 2,
+  },
+  addressText: {
+    ...TextStyles.Regular12,
+    color: Colors.gray_900,
+    flex: 1,
+    minWidth: 0,
+    marginRight: 8,
   },
   distanceText: {
     ...TextStyles.Regular12,
     color: Colors.gray_400,
-    position: "absolute",
-    right: 0,
+    flexShrink: 0,
   },
   imageScroll: {
     marginBottom: 11.25,
