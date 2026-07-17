@@ -112,6 +112,7 @@ export async function fetchPlaceMore(params: {
       params: { lat, lng, placeId },
     });
     console.log("/more API 응답결과", res.data);
+    console.log(params);
     console.log("savers:", JSON.stringify(res.data.places.savers));
     return res.data;
   } catch (err: any) {
