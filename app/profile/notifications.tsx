@@ -1,51 +1,26 @@
 import { useCallback, useState } from "react";
-import { ActivityIndicator, Alert, StyleSheet, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 
 import ProfileLayout from "@/src/components/profile/Layout";
 import ProfileHeader from "@/src/components/profile/Header";
-import UserRow from "@/src/components/common/UserRow";
+import NotificationRow from "@/src/components/notification/NotificationRow";
 import {
   fetchNotificationDetails,
   readNotifications,
   type NotificationDetail,
 } from "@/src/lib/api/notification";
-import { acceptFollowRequest, searchFriends } from "@/src/lib/api/friends";
+import { acceptFollowRequest } from "@/src/lib/api/friends";
 import { useFriendsStore } from "@/src/stores/useFriendsStore";
 import { Colors } from "@/src/styles/Colors";
 import { TextStyles } from "@/src/styles/TextStyles";
-
-async function filterActiveFollowRequestNotifications(
-  notifications: NotificationDetail[],
-) {
-  const resolvedNotifications = await Promise.all(
-    notifications.map(async (notification) => {
-      if (notification.type !== "follow_request") return notification;
-
-      try {
-        const results = await searchFriends(notification.userId);
-        const requester = results.find(
-          (item) =>
-            item.id === notification.senderId ||
-            item.userId === notification.userId,
-        );
-
-        return requester?.status === "request_received" ? notification : null;
-      } catch (err: any) {
-        console.warn(
-          "팔로우 요청 상태 확인 에러:",
-          err?.response?.status,
-          err?.response?.data ?? err?.message,
-        );
-        return notification;
-      }
-    }),
-  );
-
-  return resolvedNotifications.filter(
-    (notification): notification is NotificationDetail => notification !== null,
-  );
-}
 
 export default function NotificationsScreen() {
   const [notifications, setNotifications] = useState<NotificationDetail[]>([]);
@@ -54,7 +29,6 @@ export default function NotificationsScreen() {
   const [acceptingById, setAcceptingById] = useState<Record<number, boolean>>(
     {},
   );
-  const upsertFriend = useFriendsStore((s) => s.upsertFriend);
   const loadFriends = useFriendsStore((s) => s.loadFriends);
 
   useFocusEffect(
@@ -69,13 +43,9 @@ export default function NotificationsScreen() {
           const list = await fetchNotificationDetails();
           if (!alive) return;
 
-          const activeNotifications =
-            await filterActiveFollowRequestNotifications(list);
-          if (!alive) return;
+          setNotifications(list);
 
-          setNotifications(activeNotifications);
-
-          if (activeNotifications.some((notification) => !notification.isRead)) {
+          if (list.some((notification) => !notification.isRead)) {
             const didRead = await readNotifications();
             if (didRead && alive) {
               setNotifications((prev) =>
@@ -122,30 +92,11 @@ export default function NotificationsScreen() {
       }));
 
       try {
-        const results = await searchFriends(notification.userId);
-        const requester = results.find(
-          (item) =>
-            item.id === notification.senderId ||
-            item.userId === notification.userId,
-        );
-
-        if (!requester || requester.status !== "request_received") {
-          setNotifications((prev) =>
-            prev.filter((item) => item.id !== notification.id),
-          );
-          Alert.alert("알림", "이미 처리된 팔로우 요청이에요.");
-          return;
+        if (notification.senderId === null) {
+          throw new Error("팔로우 요청 알림에 sender_id가 없습니다.");
         }
 
-        await acceptFollowRequest(requester.id);
-        upsertFriend({
-          id: requester.id,
-          nickname: requester.nickname,
-          userId: requester.userId,
-          avatarUrl: requester.profileImageUrl,
-          comment: requester.oneLine,
-          status: "friends",
-        });
+        await acceptFollowRequest(notification.senderId);
         setNotifications((prev) =>
           prev.filter((item) => item.id !== notification.id),
         );
@@ -156,7 +107,18 @@ export default function NotificationsScreen() {
           err?.response?.status,
           err?.response?.data ?? err?.message,
         );
-        Alert.alert("오류", "팔로우 수락 중 문제가 발생했어요.");
+        if (
+          err?.response?.status === 400 ||
+          err?.response?.status === 404 ||
+          err?.response?.status === 409
+        ) {
+          setNotifications((prev) =>
+            prev.filter((item) => item.id !== notification.id),
+          );
+          Alert.alert("알림", "이미 처리된 팔로우 요청이에요.");
+        } else {
+          Alert.alert("오류", "팔로우 수락 중 문제가 발생했어요.");
+        }
       } finally {
         setAcceptingById((prev) => ({
           ...prev,
@@ -164,7 +126,7 @@ export default function NotificationsScreen() {
         }));
       }
     },
-    [acceptingById, loadFriends, upsertFriend],
+    [acceptingById, loadFriends],
   );
 
   return (
@@ -189,31 +151,25 @@ export default function NotificationsScreen() {
         </View>
       )}
 
-      {!loading &&
-        !error &&
-        notifications.map((notification) => {
-          const isFollowRequest = notification.type === "follow_request";
-          const isAccepting = acceptingById[notification.id] ?? false;
-
-          return (
-            <UserRow
-              key={notification.id}
-              nickname={notification.nickname}
-              userId={notification.userId}
-              bio={notification.oneLine ?? ""}
-              avatarUri={notification.photo}
-              actionLabel={
-                isAccepting
-                  ? "수락 중"
-                  : isFollowRequest
-                    ? "팔로우 수락"
-                    : "확인"
+      {!loading && !error && notifications.length > 0 && (
+        <FlatList
+          data={notifications}
+          keyExtractor={(notification) => String(notification.id)}
+          showsVerticalScrollIndicator={false}
+          renderItem={({ item: notification }) => (
+            <NotificationRow
+              notification={notification}
+              accepting={acceptingById[notification.id] ?? false}
+              onAccept={
+                notification.type === "follow_request" &&
+                notification.senderId !== null
+                  ? () => handleAcceptFollowRequest(notification)
+                  : undefined
               }
-              actionDisabled={!isFollowRequest || isAccepting}
-              onPressAction={() => handleAcceptFollowRequest(notification)}
             />
-          );
-        })}
+          )}
+        />
+      )}
     </ProfileLayout>
   );
 }

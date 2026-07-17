@@ -9,22 +9,50 @@ export type ApiNotificationDetail = {
   notification_id: number;
   one_line: string | null;
   photo: string | null;
-  sender_id: number;
-  spot_id: string;
-  spot_nickname: string;
-  type: string;
+  sender_id: number | null;
+  spot_id: string | null;
+  spot_nickname: string | null;
+  type: NotificationType;
 };
 
 export type NotificationDetailsResponse = {
   notifications: ApiNotificationDetail[];
 };
 
+export const IMPLEMENTED_NOTIFICATION_TYPES = [
+  "instagram_extract",
+  "follow_request",
+  "follow_accept",
+] as const;
+
+export const PLANNED_NOTIFICATION_TYPES = [
+  "place_bookmarked",
+  "place_commented",
+  "comment_liked",
+  "friend_commented",
+  "friend_saved_same_place",
+  "system_update",
+  "system_maintenance",
+  "place_trending",
+  "area_revisit_prompt",
+] as const;
+
+export type ImplementedNotificationType =
+  (typeof IMPLEMENTED_NOTIFICATION_TYPES)[number];
+export type PlannedNotificationType = (typeof PLANNED_NOTIFICATION_TYPES)[number];
+
+// 서버가 이후 추가할 타입도 목록에서 유실되지 않도록 string을 허용한다.
+export type NotificationType =
+  | ImplementedNotificationType
+  | PlannedNotificationType
+  | (string & {});
+
 export type NotificationDetail = {
   id: number;
-  senderId: number;
-  type: string;
-  nickname: string;
-  userId: string;
+  senderId: number | null;
+  type: NotificationType;
+  spotNickname: string | null;
+  spotId: string | null;
   oneLine: string | null;
   photo: string | null;
   isRead: boolean;
@@ -38,8 +66,8 @@ export function mapNotificationDetail(
     id: item.notification_id,
     senderId: item.sender_id,
     type: item.type,
-    nickname: item.spot_nickname,
-    userId: item.spot_id,
+    spotNickname: item.spot_nickname,
+    spotId: item.spot_id,
     oneLine: item.one_line,
     photo: item.photo,
     isRead: item.is_read,
@@ -47,16 +75,23 @@ export function mapNotificationDetail(
   };
 }
 
-export async function fetchNotificationDetails(): Promise<
-  NotificationDetail[]
-> {
-  const res = await api8001.get<NotificationDetailsResponse>(
+export async function fetchNotificationDetails(): Promise<NotificationDetail[]> {
+  const res = await api8001.get<
+    NotificationDetailsResponse | ApiNotificationDetail[] | ApiNotificationDetail
+  >(
     "/notifications/details",
   );
 
-  const raw = Array.isArray(res.data?.notifications)
-    ? res.data.notifications
-    : [];
+  const data = res.data;
+  if (!data || typeof data !== "object") return [];
+
+  const raw = Array.isArray(data)
+    ? data
+    : "notifications" in data && Array.isArray(data.notifications)
+      ? data.notifications
+      : "notification_id" in data
+        ? [data]
+        : [];
 
   return raw.map(mapNotificationDetail);
 }
