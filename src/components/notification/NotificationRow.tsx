@@ -1,4 +1,4 @@
-import { Image, StyleSheet, Text, View } from "react-native";
+import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 
 import SpotButton from "@/src/components/common/SpotButton";
 import type { NotificationDetail } from "@/src/lib/api/notification";
@@ -9,6 +9,7 @@ type NotificationRowProps = {
   notification: NotificationDetail;
   accepting?: boolean;
   onAccept?: () => void;
+  onPress?: () => void;
 };
 
 const DEFAULT_PROFILE_IMAGE = require("@/assets/images/default-profile.png");
@@ -48,6 +49,7 @@ export default function NotificationRow({
   notification,
   accepting = false,
   onAccept,
+  onPress,
 }: NotificationRowProps) {
   const isFollowNotification =
     notification.type === "follow_request" ||
@@ -59,23 +61,57 @@ export default function NotificationRow({
       ? DEFAULT_PROFILE_IMAGE
       : SPOT_ICON;
 
+  const fallbackMessage = formatNotificationMessage(notification.oneLine);
+  const accessibilityLabel =
+    notification.bodySegments.map((segment) => segment.text).join("") ||
+    fallbackMessage;
+
   return (
     <View style={[styles.container, !notification.isRead && styles.unread]}>
-      <View
-        style={[
-          styles.imageWrapper,
-          !isFollowNotification && styles.spotImageWrapper,
+      <Pressable
+        disabled={!onPress}
+        onPress={onPress}
+        accessibilityRole={onPress ? "button" : undefined}
+        accessibilityLabel={accessibilityLabel}
+        style={({ pressed }) => [
+          styles.targetArea,
+          pressed && styles.pressed,
         ]}
       >
-        <Image source={imageSource} style={styles.image} resizeMode="cover" />
-      </View>
+        <View
+          style={[
+            styles.imageWrapper,
+            !isFollowNotification && styles.spotImageWrapper,
+          ]}
+        >
+          <Image source={imageSource} style={styles.image} resizeMode="cover" />
+        </View>
 
-      <View style={styles.content}>
-        <Text style={styles.message}>
-          {formatNotificationMessage(notification.oneLine)}
-        </Text>
-        <Text style={styles.time}>{formatNotificationTime(notification.createdAt)}</Text>
-      </View>
+        <View style={styles.content}>
+          <Text style={styles.message}>
+            {notification.bodySegments.length > 0
+              ? notification.bodySegments.map((segment, index) => (
+                  <Text
+                    key={`${segment.text}-${index}`}
+                    style={segment.bold ? styles.messageBold : undefined}
+                  >
+                    {segment.text}
+                  </Text>
+                ))
+              : fallbackMessage}
+          </Text>
+
+          {notification.placeName ? (
+            <Text style={styles.placeName} numberOfLines={1}>
+              📍 {notification.placeName}
+            </Text>
+          ) : null}
+
+          <Text style={styles.time}>
+            {formatNotificationTime(notification.createdAt)}
+          </Text>
+        </View>
+      </Pressable>
 
       {canAccept && (
         <View style={styles.buttonArea}>
@@ -105,6 +141,15 @@ const styles = StyleSheet.create({
   unread: {
     backgroundColor: "#FFF8F5",
   },
+  pressed: {
+    opacity: 0.7,
+  },
+  targetArea: {
+    flex: 1,
+    minWidth: 0,
+    flexDirection: "row",
+    alignItems: "center",
+  },
   imageWrapper: {
     width: 44,
     height: 44,
@@ -131,6 +176,13 @@ const styles = StyleSheet.create({
   message: {
     ...TextStyles.Regular14,
     color: Colors.gray_800,
+  },
+  messageBold: {
+    fontFamily: "PretendardBold",
+  },
+  placeName: {
+    ...TextStyles.Regular12,
+    color: Colors.gray_500,
   },
   time: {
     ...TextStyles.Regular10,

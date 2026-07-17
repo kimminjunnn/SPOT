@@ -8,12 +8,14 @@ import {
   View,
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
+import { router, type Href } from "expo-router";
 
 import ProfileLayout from "@/src/components/profile/Layout";
 import ProfileHeader from "@/src/components/profile/Header";
 import NotificationRow from "@/src/components/notification/NotificationRow";
 import {
   fetchNotificationDetails,
+  getNotificationRoute,
   readNotifications,
   type NotificationDetail,
 } from "@/src/lib/api/notification";
@@ -129,6 +131,19 @@ export default function NotificationsScreen() {
     [acceptingById, loadFriends],
   );
 
+  const handlePressNotification = useCallback(
+    (notification: NotificationDetail) => {
+      const route = getNotificationRoute(
+        notification.targetType,
+        notification.targetId,
+      );
+      if (!route) return;
+
+      router.push(route as Href);
+    },
+    [],
+  );
+
   return (
     <ProfileLayout>
       <ProfileHeader title="알림" showBack />
@@ -160,6 +175,14 @@ export default function NotificationsScreen() {
             <NotificationRow
               notification={notification}
               accepting={acceptingById[notification.id] ?? false}
+              onPress={
+                getNotificationRoute(
+                  notification.targetType,
+                  notification.targetId,
+                )
+                  ? () => handlePressNotification(notification)
+                  : undefined
+              }
               onAccept={
                 notification.type === "follow_request" &&
                 notification.senderId !== null

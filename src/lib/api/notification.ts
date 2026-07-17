@@ -1,17 +1,26 @@
 import { api8001 } from "@/src/lib/api/client";
 
+export type NotificationBodySegment = {
+  bold: boolean;
+  text: string;
+};
+
 // ============
 // GET /notifications/details
 // ============
 export type ApiNotificationDetail = {
+  body_segments?: NotificationBodySegment[] | null;
   created_at: string;
   is_read: boolean;
   notification_id: number;
   one_line: string | null;
   photo: string | null;
+  place_name?: string | null;
   sender_id: number | null;
   spot_id: string | null;
   spot_nickname: string | null;
+  target_id?: number | null;
+  target_type?: string | null;
   type: NotificationType;
 };
 
@@ -48,6 +57,7 @@ export type NotificationType =
   | (string & {});
 
 export type NotificationDetail = {
+  bodySegments: NotificationBodySegment[];
   id: number;
   senderId: number | null;
   type: NotificationType;
@@ -55,6 +65,9 @@ export type NotificationDetail = {
   spotId: string | null;
   oneLine: string | null;
   photo: string | null;
+  placeName: string | null;
+  targetId: number | null;
+  targetType: string | null;
   isRead: boolean;
   createdAt: string;
 };
@@ -63,6 +76,14 @@ export function mapNotificationDetail(
   item: ApiNotificationDetail,
 ): NotificationDetail {
   return {
+    bodySegments: Array.isArray(item.body_segments)
+      ? item.body_segments.filter(
+          (segment) =>
+            segment &&
+            typeof segment.text === "string" &&
+            segment.text.length > 0,
+        )
+      : [],
     id: item.notification_id,
     senderId: item.sender_id,
     type: item.type,
@@ -70,6 +91,15 @@ export function mapNotificationDetail(
     spotId: item.spot_id,
     oneLine: item.one_line,
     photo: item.photo,
+    placeName: item.place_name ?? null,
+    targetId:
+      typeof item.target_id === "number" && Number.isFinite(item.target_id)
+        ? item.target_id
+        : null,
+    targetType:
+      typeof item.target_type === "string" && item.target_type.length > 0
+        ? item.target_type
+        : null,
     isRead: item.is_read,
     createdAt: item.created_at,
   };
@@ -94,6 +124,21 @@ export async function fetchNotificationDetails(): Promise<NotificationDetail[]> 
         : [];
 
   return raw.map(mapNotificationDetail);
+}
+
+export function getNotificationRoute(
+  targetType: string | null,
+  targetId: number | null,
+) {
+  if (targetType === "place" && targetId !== null && targetId > 0) {
+    return `/place/${targetId}`;
+  }
+
+  if (targetType === "map") {
+    return "/(tabs)/map";
+  }
+
+  return null;
 }
 
 // ============

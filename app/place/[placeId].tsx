@@ -9,6 +9,7 @@ import {
   NativeScrollEvent,
   NativeSyntheticEvent,
   Dimensions,
+  ActivityIndicator,
 } from "react-native";
 import { useState, useRef, useEffect, useMemo } from "react";
 import { useLocalSearchParams } from "expo-router";
@@ -91,11 +92,16 @@ export default function PlaceDetailScreen() {
 
   const basePlace = usePlaceMoreStore((s) => s.basePlace);
   const currentCoords = useLocationStore((s) => s.coords);
+  const refreshLocation = useLocationStore((s) => s.refreshOnce);
 
   const [currentPage, setCurrentPage] = useState(1);
   const [place, setPlace] = useState<ApiPlace | null>(null);
   const [comments, setComments] = useState<ApiPlaceComment[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [placeLoading, setPlaceLoading] = useState(true);
+  const [locationResolved, setLocationResolved] = useState(
+    currentCoords !== null,
+  );
 
   const [localBookmarked, setLocalBookmarked] = useState(false);
   const [bookmarkLoading, setBookmarkLoading] = useState(false);
@@ -143,6 +149,32 @@ export default function PlaceDetailScreen() {
     if (photos.length > 0) return photos.map((u) => ({ uri: u }));
     return [require("@/assets/images/default-place.png")];
   }, [place, basePlace]);
+
+  useEffect(() => {
+    let alive = true;
+
+    if (currentCoords !== null) {
+      setLocationResolved(true);
+      return () => {
+        alive = false;
+      };
+    }
+
+    void refreshLocation()
+      .catch((locationError) => {
+        console.warn(
+          "[PlaceDetailScreen] 현재 위치 확인 실패, 기본 좌표로 조회합니다:",
+          locationError,
+        );
+      })
+      .finally(() => {
+        if (alive) setLocationResolved(true);
+      });
+
+    return () => {
+      alive = false;
+    };
+  }, [currentCoords, refreshLocation]);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -205,27 +237,40 @@ export default function PlaceDetailScreen() {
   }, [display.isBookmarked]);
 
   useEffect(() => {
-    if (!placeId || currentCoords == null) return;
+    if (!placeId || !locationResolved) return;
+
+    let alive = true;
 
     const load = async () => {
+      setPlaceLoading(true);
+
       try {
+        const origin = useLocationStore.getState().coords ?? { lat: 0, lng: 0 };
         const data = await fetchPlaceMore({
           placeId: Number(placeId),
-          lat: currentCoords.lat,
-          lng: currentCoords.lng,
+          lat: origin.lat,
+          lng: origin.lng,
         });
 
+        if (!alive) return;
         setPlace(data.places);
         setComments(data.comments ?? []);
         setError(null);
       } catch (e: any) {
+        if (!alive) return;
         console.error("[PlaceDetailScreen] /more error:", e);
         setError(e?.message ?? "추가 정보를 불러오지 못했어요.");
+      } finally {
+        if (alive) setPlaceLoading(false);
       }
     };
 
-    load();
-  }, [placeId, currentCoords]);
+    void load();
+
+    return () => {
+      alive = false;
+    };
+  }, [placeId, locationResolved]);
 
   const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const offsetX = event.nativeEvent.contentOffset.x;
@@ -297,7 +342,18 @@ export default function PlaceDetailScreen() {
   if (!place && !basePlace) {
     return (
       <View style={[styles.container, styles.center]}>
-        <Text style={TextStyles.Medium16}>장소 정보를 찾을 수 없어요.</Text>
+        {placeLoading || !locationResolved ? (
+          <>
+            <ActivityIndicator color={Colors.gray_500} />
+            <Text style={[TextStyles.Medium16, styles.loadingText]}>
+              장소 정보를 불러오는 중...
+            </Text>
+          </>
+        ) : (
+          <Text style={TextStyles.Medium16}>
+            {error ?? "장소 정보를 찾을 수 없어요."}
+          </Text>
+        )}
       </View>
     );
   }
@@ -433,6 +489,10 @@ const styles = StyleSheet.create({
   center: {
     justifyContent: "center",
     alignItems: "center",
+  },
+  loadingText: {
+    marginTop: 10,
+    color: Colors.gray_600,
   },
   topImageContainer: {
     width: "100%",

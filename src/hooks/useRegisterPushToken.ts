@@ -6,6 +6,7 @@ import { useEffect, useRef } from "react";
 import { Platform } from "react-native";
 
 import { savePushToken } from "@/src/lib/api/pushTokens";
+import { getNotificationRoute } from "@/src/lib/api/notification";
 
 type ExpoNotificationsModule = typeof import("expo-notifications");
 
@@ -112,10 +113,22 @@ async function clearPendingNotificationRoute() {
 function getRouteFromNotificationData(data: unknown) {
   if (!data || typeof data !== "object") return null;
 
-  const route = (data as { route?: unknown }).route;
-  if (typeof route !== "string" || !route.startsWith("/")) return null;
+  const payload = data as {
+    route?: unknown;
+    target_id?: unknown;
+    target_type?: unknown;
+  };
+  const route = payload.route;
+  if (typeof route === "string" && route.startsWith("/")) return route;
 
-  return route;
+  const targetType =
+    typeof payload.target_type === "string" ? payload.target_type : null;
+  const targetId =
+    typeof payload.target_id === "number" && Number.isFinite(payload.target_id)
+      ? payload.target_id
+      : null;
+
+  return getNotificationRoute(targetType, targetId);
 }
 
 async function registerPushToken() {
