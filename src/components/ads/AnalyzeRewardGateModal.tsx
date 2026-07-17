@@ -23,6 +23,7 @@ import {
 import {
   analyzeInstagramUrl,
   getExtractTicketStatus,
+  forceVerifyExtractTicket,
 } from "@/src/lib/api/analyze";
 import { Colors } from "@/src/styles/Colors";
 import { TextStyles } from "@/src/styles/TextStyles";
@@ -71,6 +72,10 @@ export default function AnalyzeRewardGateModal({
         setLoading(false);
         setError("광고 시청이 완료되지 않았어요.");
         return;
+      }
+
+      if (__DEV__) {
+        await forceVerifyExtractTicket(ticketId);
       }
 
       await waitForExtractTicketReady(ticketId);

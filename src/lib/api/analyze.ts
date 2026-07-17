@@ -34,3 +34,13 @@ export async function getExtractTicketStatus(
 
   return res.data;
 }
+
+export async function forceVerifyExtractTicket(
+  ticketId: string,
+): Promise<ExtractTicketStatusResponse> {
+  const res = await api8001.post<ExtractTicketStatusResponse>(
+    `/debug/force-verify/${encodeURIComponent(ticketId)}`,
+  );
+
+  return res.data;
+}
