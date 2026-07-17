@@ -89,6 +89,7 @@ export default function FriendsScreen() {
               userId={u.userId}
               bio={u.comment ?? ""}
               avatarUri={u.avatarUrl ?? null}
+              avatarFill
               actionLabel={isFollowing ? "팔로잉" : "팔로우"}
               actionVisuallyDisabled={isFollowing}
               onPressAction={() => handlePressFollow(u.id, isFollowing)}

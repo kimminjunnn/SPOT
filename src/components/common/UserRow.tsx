@@ -9,6 +9,7 @@ type UserRowProps = {
   userId: string;
   bio?: string;
   avatarUri?: string | null;
+  avatarFill?: boolean;
   actionLabel: string;
   actionDisabled?: boolean;
   actionVisuallyDisabled?: boolean;
@@ -23,6 +24,7 @@ export default function UserRow({
   userId,
   bio,
   avatarUri,
+  avatarFill = false,
   actionLabel,
   actionDisabled,
   actionVisuallyDisabled,
@@ -32,10 +34,13 @@ export default function UserRow({
   return (
     <Pressable onPress={onPressRow} style={styles.container}>
       {/* 아바타 */}
-      <View style={styles.avatarWrapper}>
+      <View
+        style={[styles.avatarWrapper, avatarFill && styles.avatarWrapperFill]}
+      >
         <Image
           source={avatarUri ? { uri: avatarUri } : DEFAULT_PROFILE_IMAGE}
-          style={styles.avatarImage}
+          style={[styles.avatarImage, avatarFill && styles.avatarImageFill]}
+          resizeMode="cover"
         />
       </View>
 
@@ -71,6 +76,7 @@ export default function UserRow({
 }
 
 const AVATAR_SIZE = 19;
+const AVATAR_WRAPPER_SIZE = 35;
 
 const styles = StyleSheet.create({
   container: {
@@ -87,9 +93,20 @@ const styles = StyleSheet.create({
     borderRadius: 50,
     backgroundColor: "#F5F5F5",
   },
+  avatarWrapperFill: {
+    width: AVATAR_WRAPPER_SIZE,
+    height: AVATAR_WRAPPER_SIZE,
+    padding: 0,
+    borderRadius: AVATAR_WRAPPER_SIZE / 2,
+    overflow: "hidden",
+  },
   avatarImage: {
     width: AVATAR_SIZE,
     height: AVATAR_SIZE,
+  },
+  avatarImageFill: {
+    width: "100%",
+    height: "100%",
   },
   avatarPlaceholder: {
     width: AVATAR_SIZE,
