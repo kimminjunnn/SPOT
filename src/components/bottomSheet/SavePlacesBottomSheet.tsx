@@ -35,7 +35,7 @@ type Props = {
   onConfirm?: (ids: string[]) => void;
 };
 
-const FOOTER_HEIGHT = 72;
+const FOOTER_HEIGHT = 84;
 
 function SavePlacesBottomSheet({
   visible,
@@ -120,7 +120,7 @@ function SavePlacesBottomSheet({
         </View>
       </BottomSheetFooter>
     ),
-    [insets.bottom, selectedIds.length, handleConfirm],
+    [selectedIds.length, handleConfirm],
   );
 
   return (
@@ -171,7 +171,14 @@ function SavePlacesBottomSheet({
           const checked = selected.has(item.id);
 
           return (
-            <View key={item.id} style={styles.card}>
+            <Pressable
+              key={item.id}
+              onPress={() => toggleOne(item.id)}
+              style={styles.card}
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked }}
+              accessibilityLabel={`${item.name} 선택`}
+            >
               <Image
                 source={
                   item.thumbUrl
@@ -190,21 +197,25 @@ function SavePlacesBottomSheet({
                     style={styles.addressIcon}
                     source={require("@/assets/images/marker-gray.png")}
                   />
-                  <Text style={styles.itemAddress}>{item.address}</Text>
+                  <Text
+                    style={styles.itemAddress}
+                    numberOfLines={1}
+                    ellipsizeMode="tail"
+                  >
+                    {item.address}
+                  </Text>
                 </View>
               </View>
 
-              <Pressable onPress={() => toggleOne(item.id)}>
-                <View
-                  style={[
-                    styles.checkboxLarge,
-                    checked && styles.checkboxChecked,
-                  ]}
-                >
-                  {checked && <Text style={styles.checkboxTick}>✓</Text>}
-                </View>
-              </Pressable>
-            </View>
+              <View
+                style={[
+                  styles.checkboxLarge,
+                  checked && styles.checkboxChecked,
+                ]}
+              >
+                {checked && <Text style={styles.checkboxTick}>✓</Text>}
+              </View>
+            </Pressable>
           );
         })}
       </BottomSheetScrollView>
@@ -254,7 +265,9 @@ const styles = StyleSheet.create({
   },
   info: {
     flex: 1,
+    minWidth: 0,
     marginLeft: 12,
+    marginRight: 12,
   },
   infoRow: {
     flexDirection: "row",
@@ -272,6 +285,8 @@ const styles = StyleSheet.create({
   },
   addressContainer: {
     flexDirection: "row",
+    alignItems: "flex-start",
+    minWidth: 0,
   },
   addressIcon: {
     marginTop: 3,
@@ -279,6 +294,8 @@ const styles = StyleSheet.create({
     height: 15,
   },
   itemAddress: {
+    flex: 1,
+    minWidth: 0,
     ...TextStyles.Regular12,
     color: Colors.gray_800,
     marginTop: 2,
@@ -316,6 +333,8 @@ const styles = StyleSheet.create({
   },
   footer: {
     paddingHorizontal: 16,
+    paddingBottom: 12,
+    backgroundColor: Colors.white,
   },
   cta: {
     height: 48,
