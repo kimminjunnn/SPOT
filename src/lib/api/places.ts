@@ -4,6 +4,7 @@ import type {
   ApiPlace,
   ApiMapPlace,
   Place,
+  ApiPlaceDetailsResponse,
   ApiPlaceMoreResponse,
 } from "@/src/types/place";
 import {
@@ -99,7 +100,7 @@ export async function fetchPlacesByDistance(params: {
   }
 }
 
-/** /more API */
+/** 8001 /main/place/details 장소 상세 */
 export async function fetchPlaceMore(params: {
   lat: number;
   lng: number;
@@ -108,15 +109,25 @@ export async function fetchPlaceMore(params: {
   const { lat, lng, placeId } = params;
 
   try {
-    const res = await api8080.get<ApiPlaceMoreResponse>("/more", {
-      params: { lat, lng, placeId },
-    });
-    console.log("/more API 응답결과", res.data);
-    console.log(params);
-    console.log("savers:", JSON.stringify(res.data.places.savers));
-    return res.data;
+    const res = await api8001.get<ApiPlaceDetailsResponse>(
+      "/main/place/details",
+      {
+        params: { place_id: placeId, lat, lng },
+      },
+    );
+    const { photos, ...place } = res.data.places;
+    const data: ApiPlaceMoreResponse = {
+      places: {
+        ...place,
+        photo: photos ?? null,
+      },
+      comments: [],
+    };
+
+    console.log("/main/place/details API 응답결과", data);
+    return data;
   } catch (err: any) {
-    console.error("[/more] ERROR", {
+    console.error("[/main/place/details] ERROR", {
       message: err?.message,
       status: err?.response?.status,
       data: err?.response?.data,

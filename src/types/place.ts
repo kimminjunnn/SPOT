@@ -46,7 +46,7 @@ export type Place = {
   isBookmarked: boolean;
 };
 
-// ---------- /more API용 ----------
+// ---------- 장소 상세 API용 ----------
 
 export type ApiPlaceComment = {
   id: number;
@@ -67,6 +67,12 @@ export type ApiPlaceComment = {
 export type ApiPlaceMoreResponse = {
   places: ApiPlace;
   comments: ApiPlaceComment[];
+};
+
+export type ApiPlaceDetailsResponse = {
+  places: Omit<ApiPlace, "photo"> & {
+    photos: string[];
+  };
 };
 
 export type ApiMapPlace = {
