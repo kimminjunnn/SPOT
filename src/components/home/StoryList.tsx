@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo, useRef } from "react";
 import {
   ScrollView,
   View,
@@ -35,6 +35,7 @@ type Props = {
   myBio: string;
   myAvatarSource?: ImageSourcePropType;
   friends: FriendStory[];
+  selectedUser: SelectedUser | null;
   onSelectStory: (user: SelectedUser | null) => void;
 };
 
@@ -69,8 +70,10 @@ export default function StoryList({
   myBio,
   myAvatarSource,
   friends,
+  selectedUser,
   onSelectStory,
 }: Props) {
+  const scrollRef = useRef<ScrollView>(null);
   const items = useMemo<StoryItem[]>(() => {
     return [
       {
@@ -116,8 +119,29 @@ export default function StoryList({
     ];
   }, [myNickname, myUserId, myBio, myAvatarSource, friends]);
 
+  useEffect(() => {
+    const selectedIndex = items.findIndex((item) => {
+      if (item.kind === "friends") return selectedUser == null;
+      if (selectedUser?.scope === "me") return item.key === "me";
+
+      return (
+        selectedUser?.scope === "friend" &&
+        item.payload.scope === "friend" &&
+        item.payload.userId === selectedUser.userId
+      );
+    });
+
+    if (selectedIndex < 0) return;
+
+    scrollRef.current?.scrollTo({
+      x: Math.max(0, selectedIndex * 85 - 16),
+      animated: true,
+    });
+  }, [items, selectedUser]);
+
   return (
     <ScrollView
+      ref={scrollRef}
       horizontal
       showsHorizontalScrollIndicator={false}
       style={styles.storyScroll}
@@ -125,6 +149,12 @@ export default function StoryList({
     >
       {items.map((item) => {
         const isFriends = item.kind === "friends";
+        const isSelected = isFriends
+          ? selectedUser == null
+          : item.payload.scope === "me"
+            ? selectedUser?.scope === "me"
+            : selectedUser?.scope === "friend" &&
+              item.payload.userId === selectedUser.userId;
 
         return (
           <Pressable
@@ -141,7 +171,12 @@ export default function StoryList({
               }
             }}
           >
-            <View style={styles.storyAvatar}>
+            <View
+              style={[
+                styles.storyAvatar,
+                isSelected && styles.storyAvatarSelected,
+              ]}
+            >
               <Image
                 source={item.source ?? fallbackProfile}
                 style={[
@@ -177,6 +212,10 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     justifyContent: "center",
     alignItems: "center",
+  },
+  storyAvatarSelected: {
+    borderWidth: 2,
+    borderColor: Colors.primary_500,
   },
   avatarImage: { width: "100%", height: "100%" },
   friendsIcon40: { width: 40, height: 40 },

@@ -116,6 +116,7 @@ export const HomeHeader = ({
           myBio={myBio}
           myAvatarSource={myAvatarSource}
           friends={friends}
+          selectedUser={selectedUser}
           onSelectStory={onSelectStory}
         />
       )}

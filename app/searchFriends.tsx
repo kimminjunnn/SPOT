@@ -24,6 +24,7 @@ import {
 import { useFriendsStore } from "@/src/stores/useFriendsStore";
 import { useRecentFriendSearchStore } from "@/src/stores/useRecentFriendSearchStore";
 import { useMyProfileStore } from "@/src/stores/useMyProfileStore";
+import { openFriendHome } from "@/src/lib/navigation/openFriendHome";
 
 export default function SearchFriendScreen() {
   const [searchInputText, setSearchInputText] = useState("");
@@ -136,7 +137,13 @@ export default function SearchFriendScreen() {
         viewerId,
       });
 
-      router.back();
+      openFriendHome({
+        id: friend.id,
+        nickname: friend.nickname,
+        userId: friend.userId,
+        bio: friend.oneLine,
+        avatarUrl: friend.profileImageUrl,
+      });
     },
     [addRecent, viewerId],
   );

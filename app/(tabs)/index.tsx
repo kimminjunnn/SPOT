@@ -3,7 +3,11 @@ import React, { useEffect, useRef, useState, useCallback } from "react";
 import { SafeAreaView, StyleSheet, View, Animated } from "react-native";
 
 // Routing
-import { useFocusEffect, useNavigation } from "expo-router";
+import {
+  useFocusEffect,
+  useLocalSearchParams,
+  useNavigation,
+} from "expo-router";
 import type { BottomTabNavigationProp } from "@react-navigation/bottom-tabs";
 
 // types and constants
@@ -63,6 +67,21 @@ type RootTabParamList = {
 };
 
 export default function Home() {
+  const {
+    selectedFriendId,
+    selectedFriendNickname,
+    selectedFriendUserId,
+    selectedFriendBio,
+    selectedFriendAvatarUrl,
+    friendSelectionKey,
+  } = useLocalSearchParams<{
+    selectedFriendId?: string;
+    selectedFriendNickname?: string;
+    selectedFriendUserId?: string;
+    selectedFriendBio?: string;
+    selectedFriendAvatarUrl?: string;
+    friendSelectionKey?: string;
+  }>();
   const [selectedUser, setSelectedUser] = useState<StorySelectedUser | null>(
     null,
   );
@@ -106,6 +125,41 @@ export default function Home() {
     handleScrollDirection,
     showHeader,
   } = useAutoHideHeader();
+
+  useEffect(() => {
+    const friendId = Number(selectedFriendId);
+    if (!friendSelectionKey || !Number.isFinite(friendId)) return;
+
+    const profileImage = selectedFriendAvatarUrl
+      ? { uri: selectedFriendAvatarUrl }
+      : require("@/assets/images/default-profile.png");
+
+    setSelectedUser({
+      scope: "friend",
+      userId: friendId,
+      userIdText: selectedFriendUserId ?? "",
+      nickname: selectedFriendNickname ?? "",
+      bio: selectedFriendBio ?? "",
+      profileImage,
+    });
+    setScope({ type: "friend", userId: friendId });
+    setActiveTab("map");
+    setSelectedPlaceId(null);
+    setMarkers([]);
+    setPlaceList([]);
+    setDidInitCamera(false);
+    unfocusPlace();
+    showHeader();
+  }, [
+    friendSelectionKey,
+    selectedFriendAvatarUrl,
+    selectedFriendBio,
+    selectedFriendId,
+    selectedFriendNickname,
+    selectedFriendUserId,
+    showHeader,
+    unfocusPlace,
+  ]);
 
   useEffect(() => {
     return navigation.addListener("tabPress", () => {
@@ -479,7 +533,7 @@ export default function Home() {
         <View onLayout={handleHeaderLayout}>
           <HomeHeader
             friends={friends}
-            selectedUser={null}
+            selectedUser={selectedUser}
             onSelectStory={handleSelectStory}
             showUserCard={false}
           />
@@ -490,7 +544,7 @@ export default function Home() {
         >
           <HomeHeader
             friends={friends}
-            selectedUser={null}
+            selectedUser={selectedUser}
             onSelectStory={handleSelectStory}
             showUserCard={false}
           />

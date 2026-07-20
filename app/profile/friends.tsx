@@ -9,6 +9,7 @@ import { deleteFriend, sendFollowRequest } from "@/src/lib/api/friends";
 import { useFriendsStore } from "@/src/stores/useFriendsStore";
 import { Colors } from "@/src/styles/Colors";
 import { TextStyles } from "@/src/styles/TextStyles";
+import { openFriendHome } from "@/src/lib/navigation/openFriendHome";
 
 export default function FriendsScreen() {
   const friends = useFriendsStore((s) => s.friends);
@@ -93,9 +94,15 @@ export default function FriendsScreen() {
               actionLabel={isFollowing ? "팔로잉" : "팔로우"}
               actionVisuallyDisabled={isFollowing}
               onPressAction={() => handlePressFollow(u.id, isFollowing)}
-              onPressRow={() => {
-                // 나중에 프로필 상세 이동 붙이면 됨
-              }}
+              onPressRow={() =>
+                openFriendHome({
+                  id: u.id,
+                  nickname: u.nickname,
+                  userId: u.userId,
+                  bio: u.comment,
+                  avatarUrl: u.avatarUrl,
+                })
+              }
             />
           );
         })}
