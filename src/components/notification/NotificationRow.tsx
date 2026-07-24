@@ -55,11 +55,14 @@ export default function NotificationRow({
     notification.type === "follow_request" ||
     notification.type === "follow_accept";
   const canAccept = notification.type === "follow_request" && !!onAccept;
-  const imageSource = notification.photo
-    ? { uri: notification.photo }
+  const photoUri = notification.photo?.trim();
+  const hasPhoto = !!photoUri;
+  const imageSource = hasPhoto
+    ? { uri: photoUri }
     : isFollowNotification
       ? DEFAULT_PROFILE_IMAGE
       : SPOT_ICON;
+  const usesSpotIcon = !hasPhoto && !isFollowNotification;
 
   const fallbackMessage = formatNotificationMessage(notification.oneLine);
   const accessibilityLabel =
@@ -81,7 +84,7 @@ export default function NotificationRow({
         <View
           style={[
             styles.imageWrapper,
-            !isFollowNotification && styles.spotImageWrapper,
+            usesSpotIcon && styles.spotImageWrapper,
           ]}
         >
           <Image source={imageSource} style={styles.image} resizeMode="cover" />

@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -31,6 +31,7 @@ export default function NotificationsScreen() {
   const [acceptingById, setAcceptingById] = useState<Record<number, boolean>>(
     {},
   );
+  const acceptingIdsRef = useRef(new Set<number>());
   const loadFriends = useFriendsStore((s) => s.loadFriends);
 
   useFocusEffect(
@@ -84,10 +85,11 @@ export default function NotificationsScreen() {
 
   const handleAcceptFollowRequest = useCallback(
     async (notification: NotificationDetail) => {
-      if (acceptingById[notification.id]) {
+      if (acceptingIdsRef.current.has(notification.id)) {
         return;
       }
 
+      acceptingIdsRef.current.add(notification.id);
       setAcceptingById((prev) => ({
         ...prev,
         [notification.id]: true,
@@ -122,13 +124,15 @@ export default function NotificationsScreen() {
           Alert.alert("오류", "팔로우 수락 중 문제가 발생했어요.");
         }
       } finally {
-        setAcceptingById((prev) => ({
-          ...prev,
-          [notification.id]: false,
-        }));
+        acceptingIdsRef.current.delete(notification.id);
+        setAcceptingById((prev) => {
+          const next = { ...prev };
+          delete next[notification.id];
+          return next;
+        });
       }
     },
-    [acceptingById, loadFriends],
+    [loadFriends],
   );
 
   const handlePressNotification = useCallback(

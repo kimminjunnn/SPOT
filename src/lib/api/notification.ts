@@ -19,7 +19,7 @@ export type ApiNotificationDetail = {
   sender_id: number | null;
   spot_id: string | null;
   spot_nickname: string | null;
-  target_id?: number | null;
+  target_id?: number | string | null;
   target_type?: string | null;
   type: NotificationType;
 };
@@ -72,6 +72,17 @@ export type NotificationDetail = {
   createdAt: string;
 };
 
+function parsePositiveInteger(value: unknown): number | null {
+  const parsed =
+    typeof value === "number"
+      ? value
+      : typeof value === "string" && value.trim().length > 0
+        ? Number(value)
+        : Number.NaN;
+
+  return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : null;
+}
+
 export function mapNotificationDetail(
   item: ApiNotificationDetail,
 ): NotificationDetail {
@@ -92,13 +103,10 @@ export function mapNotificationDetail(
     oneLine: item.one_line,
     photo: item.photo,
     placeName: item.place_name ?? null,
-    targetId:
-      typeof item.target_id === "number" && Number.isFinite(item.target_id)
-        ? item.target_id
-        : null,
+    targetId: parsePositiveInteger(item.target_id),
     targetType:
-      typeof item.target_type === "string" && item.target_type.length > 0
-        ? item.target_type
+      typeof item.target_type === "string" && item.target_type.trim().length > 0
+        ? item.target_type.trim()
         : null,
     isRead: item.is_read,
     createdAt: item.created_at,
@@ -169,5 +177,6 @@ export async function fetchUnreadNotificationCount(): Promise<number> {
     "/notifications/unread-count",
   );
 
-  return Number(res.data?.unread_count ?? 0);
+  const count = Number(res.data?.unread_count ?? 0);
+  return Number.isFinite(count) ? Math.max(0, Math.floor(count)) : 0;
 }

@@ -102,10 +102,6 @@ async function getPendingNotificationRoute() {
   return AsyncStorage.getItem(PENDING_NOTIFICATION_ROUTE_KEY);
 }
 
-async function setPendingNotificationRoute(route: string) {
-  await AsyncStorage.setItem(PENDING_NOTIFICATION_ROUTE_KEY, route);
-}
-
 async function clearPendingNotificationRoute() {
   await AsyncStorage.removeItem(PENDING_NOTIFICATION_ROUTE_KEY);
 }
@@ -123,10 +119,13 @@ function getRouteFromNotificationData(data: unknown) {
 
   const targetType =
     typeof payload.target_type === "string" ? payload.target_type : null;
+  const rawTargetId =
+    typeof payload.target_id === "number" ||
+    typeof payload.target_id === "string"
+      ? Number(payload.target_id)
+      : Number.NaN;
   const targetId =
-    typeof payload.target_id === "number" && Number.isFinite(payload.target_id)
-      ? payload.target_id
-      : null;
+    Number.isSafeInteger(rawTargetId) && rawTargetId > 0 ? rawTargetId : null;
 
   return getNotificationRoute(targetType, targetId);
 }
@@ -254,7 +253,6 @@ export function useRegisterPushToken({ enabled }: UseRegisterPushTokenOptions) {
           );
 
           if (route) {
-            void setPendingNotificationRoute(route);
             router.push(route as Href);
           }
         },
@@ -269,7 +267,6 @@ export function useRegisterPushToken({ enabled }: UseRegisterPushTokenOptions) {
         );
 
         if (route) {
-          void setPendingNotificationRoute(route);
           router.push(route as Href);
           void Notifications.clearLastNotificationResponseAsync();
         }
