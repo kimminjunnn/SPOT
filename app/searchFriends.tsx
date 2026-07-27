@@ -18,6 +18,7 @@ import {
   searchFriends,
   sendFollowRequest,
   acceptFollowRequest,
+  getFriendStatus,
   deleteFriend,
   type FriendSearchItem,
 } from "@/src/lib/api/friends";
@@ -191,7 +192,32 @@ export default function SearchFriendScreen() {
           }
 
           case "friends": {
-            await deleteFriend(friend.id);
+            const relationship = await getFriendStatus(friend.id);
+
+            if (relationship.status !== "friend") {
+              const nextStatus: FriendSearchItem["status"] =
+                relationship.status === "waiting"
+                  ? "request_sent"
+                  : relationship.status === "block"
+                    ? "blocked"
+                    : "none";
+
+              if (nextStatus === "none") {
+                removeFriend(friend.id);
+                void loadFriends({ force: true });
+              }
+
+              updateResultStatus(friend.id, nextStatus);
+              return;
+            }
+
+            try {
+              await deleteFriend(friend.id);
+            } catch (err: any) {
+              // 상태 조회 직후 관계가 삭제된 경우에도 팔로우 가능한 상태로 복구한다.
+              if (err?.response?.status !== 404) throw err;
+            }
+
             removeFriend(friend.id);
             updateResultStatus(friend.id, "none");
             void loadFriends({ force: true });

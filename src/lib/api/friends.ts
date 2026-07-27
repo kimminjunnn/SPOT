@@ -75,6 +75,17 @@ export type FriendSearchItem = {
   status: FriendStatus;
 };
 
+export type FriendRelationshipStatus =
+  | "friend"
+  | "waiting"
+  | "block"
+  | "none";
+
+export type FriendStatusResponse = {
+  friend_id: number;
+  status: FriendRelationshipStatus;
+};
+
 const normalizeProfilePhoto = (profilePhoto: string | null) => {
   if (!profilePhoto) return null;
   if (
@@ -130,6 +141,14 @@ export async function sendFollowRequest(friend_id: number) {
 // 팔로우 수락
 export async function acceptFollowRequest(friend_id: number) {
   const res = await api8001.post(`/friends/access_follow/${friend_id}`);
+  return res.data;
+}
+
+// 특정 사용자와의 현재 관계 상태 조회
+export async function getFriendStatus(friend_id: number) {
+  const res = await api8001.get<FriendStatusResponse>(
+    `/friends/status/${friend_id}`,
+  );
   return res.data;
 }
 
