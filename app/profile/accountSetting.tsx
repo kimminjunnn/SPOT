@@ -1,11 +1,11 @@
-import { View, Text, StyleSheet, Pressable, Image } from "react-native";
+import { View, Text, StyleSheet, Pressable, Image, Alert } from "react-native";
 import { useState } from "react";
 import ProfileLayout from "@/src/components/profile/Layout";
 import ProfileHeader from "@/src/components/profile/Header";
 import { TextStyles } from "@/src/styles/TextStyles";
 import { Colors } from "@/src/styles/Colors";
 import ConfirmModal from "@/src/components/common/ConfirmModal";
-import { logout } from "@/src/lib/api/settings";
+import { deleteAccount, logout } from "@/src/lib/api/settings";
 import { useRouter } from "expo-router";
 import { useAuthStore } from "@/src/stores/useAuthStore";
 import { deactivateLastRegisteredPushToken } from "@/src/hooks/useRegisterPushToken";
@@ -15,6 +15,29 @@ export default function AccountSettingScreen() {
   const clearAuth = useAuthStore((state) => state.clearAuth);
   const [logoutVisible, setLogoutVisible] = useState(false);
   const [withdrawVisible, setWithdrawVisible] = useState(false);
+  const [isWithdrawing, setIsWithdrawing] = useState(false);
+
+  const handleWithdraw = async () => {
+    if (isWithdrawing) return;
+
+    setWithdrawVisible(false);
+    setIsWithdrawing(true);
+
+    try {
+      await deactivateLastRegisteredPushToken();
+
+      const success = await deleteAccount();
+      if (!success) {
+        Alert.alert("탈퇴 실패", "계정 탈퇴 중 문제가 발생했습니다.");
+        return;
+      }
+
+      await clearAuth();
+      router.replace("/login");
+    } finally {
+      setIsWithdrawing(false);
+    }
+  };
 
   return (
     <ProfileLayout>
@@ -40,10 +63,7 @@ export default function AccountSettingScreen() {
         title="계정을 탈퇴 합니다"
         description="탈퇴하면 계정 정보 복구가 불가능합니다"
         onCancel={() => setWithdrawVisible(false)}
-        onConfirm={() => {
-          setWithdrawVisible(false);
-          // TODO: 계정 탈퇴 API
-        }}
+        onConfirm={() => void handleWithdraw()}
       />
 
       {/* 헤더 */}
@@ -52,7 +72,11 @@ export default function AccountSettingScreen() {
       {/* 컨테이너 */}
       <View style={styles.sectionContainer}>
         {/* 계정 탈퇴 */}
-        <Pressable style={styles.row} onPress={() => setWithdrawVisible(true)}>
+        <Pressable
+          style={styles.row}
+          onPress={() => setWithdrawVisible(true)}
+          disabled={isWithdrawing}
+        >
           <Text style={styles.rowText}>계정 탈퇴</Text>
           <Image
             style={styles.arrowRight}
