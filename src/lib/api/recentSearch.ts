@@ -19,16 +19,6 @@ export async function fetchRecentSearches(options?: {
   return Array.isArray(res.data) ? res.data : [];
 }
 
-export async function createRecentSearch(
-  keyword: string,
-): Promise<RecentSearchResponseItem> {
-  const res = await api8080.post<RecentSearchResponseItem>("/recent", {
-    keyword,
-  });
-
-  return res.data;
-}
-
 export async function deleteRecentSearch(keyword: string): Promise<void> {
   const encoded = encodeURIComponent(keyword);
   await api8080.delete(`/recent/${encoded}`);

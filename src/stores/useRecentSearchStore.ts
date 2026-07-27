@@ -1,7 +1,6 @@
 // src/stores/useRecentSearchStore.ts
 import { create } from "zustand";
 import {
-  createRecentSearch,
   deleteRecentSearch,
   fetchRecentSearches,
   type RecentSearchResponseItem,
@@ -82,24 +81,14 @@ export const useRecentSearchStore = create<State & Actions>((set, get) => ({
     if (!normalizedKeyword) return;
 
     const { items } = get();
-    const tempId = genId("tmp");
-    const optimistic: RecentItem = { id: tempId, keyword: normalizedKeyword };
-    set({ items: dedupeByKeyword([optimistic, ...items]) });
+    const localItem: RecentItem = {
+      id: genId("local"),
+      keyword: normalizedKeyword,
+    };
 
-    try {
-      const data = await createRecentSearch(normalizedKeyword);
-      const created = normalize(data) ?? {
-        id: genId("srv"),
-        keyword: normalizedKeyword,
-      };
-      set((s) => ({
-        items: dedupeByKeyword(
-          s.items.map((it) => (it.id === tempId ? created : it)),
-        ),
-      }));
-    } catch {
-      // 실패 시 그대로 두고 로그만 — 필요 시 롤백 가능
-    }
+    // 최근 검색의 서버 저장은 검색 API가 담당한다.
+    // 여기서는 다음 조회 전까지 화면에 즉시 반영할 로컬 상태만 갱신한다.
+    set({ items: dedupeByKeyword([localItem, ...items]) });
   },
 
   //  keyword 기반 삭제 API 사용
