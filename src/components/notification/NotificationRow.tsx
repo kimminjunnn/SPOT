@@ -14,6 +14,31 @@ type NotificationRowProps = {
 
 const DEFAULT_PROFILE_IMAGE = require("@/assets/images/default-profile.png");
 const SPOT_ICON = require("@/assets/images/icon.png");
+const ANONYMOUS_NOTIFICATION_MESSAGE =
+  "누군가님에게서 알림이 도착했습니다.";
+
+function getNotificationBodySegments(notification: NotificationDetail) {
+  const segments = notification.bodySegments;
+  const message = segments.map((segment) => segment.text).join("").trim();
+  const displayedMessage =
+    message || formatNotificationMessage(notification.oneLine);
+  const isAnonymousFallback =
+    displayedMessage === ANONYMOUS_NOTIFICATION_MESSAGE;
+
+  if (!isAnonymousFallback) {
+    return segments;
+  }
+
+  return [
+    {
+      bold: false,
+      text:
+        notification.type === "instagram_extract"
+          ? "인스타그램 장소 분석이 완료되었어요."
+          : "새로운 알림이 도착했어요.",
+    },
+  ];
+}
 
 function formatNotificationMessage(message: string | null) {
   return (message ?? "새 알림이 도착했어요.")
@@ -65,8 +90,9 @@ export default function NotificationRow({
   const usesSpotIcon = !hasPhoto && !isFollowNotification;
 
   const fallbackMessage = formatNotificationMessage(notification.oneLine);
+  const bodySegments = getNotificationBodySegments(notification);
   const accessibilityLabel =
-    notification.bodySegments.map((segment) => segment.text).join("") ||
+    bodySegments.map((segment) => segment.text).join("") ||
     fallbackMessage;
 
   return (
@@ -92,8 +118,8 @@ export default function NotificationRow({
 
         <View style={styles.content}>
           <Text style={styles.message}>
-            {notification.bodySegments.length > 0
-              ? notification.bodySegments.map((segment, index) => (
+            {bodySegments.length > 0
+              ? bodySegments.map((segment, index) => (
                   <Text
                     key={`${segment.text}-${index}`}
                     style={segment.bold ? styles.messageBold : undefined}
@@ -164,7 +190,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#F5F5F5",
   },
   spotImageWrapper: {
-    padding: 9,
+    padding: 5,
     backgroundColor: "#FFF3EE",
     borderColor: Colors.primary_100,
   },

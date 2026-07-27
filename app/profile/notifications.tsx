@@ -8,17 +8,16 @@ import {
   View,
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
-import { router, type Href } from "expo-router";
 
 import ProfileLayout from "@/src/components/profile/Layout";
 import ProfileHeader from "@/src/components/profile/Header";
 import NotificationRow from "@/src/components/notification/NotificationRow";
 import {
   fetchNotificationDetails,
-  getNotificationRoute,
   readNotifications,
   type NotificationDetail,
 } from "@/src/lib/api/notification";
+import { openNotificationTarget } from "@/src/lib/navigation/openNotificationTarget";
 import { acceptFollowRequest } from "@/src/lib/api/friends";
 import { useFriendsStore } from "@/src/stores/useFriendsStore";
 import { Colors } from "@/src/styles/Colors";
@@ -137,13 +136,15 @@ export default function NotificationsScreen() {
 
   const handlePressNotification = useCallback(
     (notification: NotificationDetail) => {
-      const route = getNotificationRoute(
-        notification.targetType,
-        notification.targetId,
-      );
-      if (!route) return;
-
-      router.push(route as Href);
+      void openNotificationTarget({
+        notificationId: notification.id,
+        route: null,
+        targetId: notification.targetId,
+        targetType: notification.targetType,
+        type: notification.type,
+      }).catch((error) => {
+        console.warn("[Notifications] Failed to open target:", error);
+      });
     },
     [],
   );
@@ -180,10 +181,9 @@ export default function NotificationsScreen() {
               notification={notification}
               accepting={acceptingById[notification.id] ?? false}
               onPress={
-                getNotificationRoute(
-                  notification.targetType,
-                  notification.targetId,
-                )
+                notification.type === "instagram_extract" ||
+                notification.targetType === "place" ||
+                notification.targetType === "map"
                   ? () => handlePressNotification(notification)
                   : undefined
               }

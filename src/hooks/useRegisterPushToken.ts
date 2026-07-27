@@ -6,7 +6,10 @@ import { useEffect, useRef } from "react";
 import { Platform } from "react-native";
 
 import { savePushToken } from "@/src/lib/api/pushTokens";
-import { getNotificationRoute } from "@/src/lib/api/notification";
+import {
+  openNotificationTarget,
+  parseNotificationTarget,
+} from "@/src/lib/navigation/openNotificationTarget";
 
 type ExpoNotificationsModule = typeof import("expo-notifications");
 
@@ -107,27 +110,7 @@ async function clearPendingNotificationRoute() {
 }
 
 function getRouteFromNotificationData(data: unknown) {
-  if (!data || typeof data !== "object") return null;
-
-  const payload = data as {
-    route?: unknown;
-    target_id?: unknown;
-    target_type?: unknown;
-  };
-  const route = payload.route;
-  if (typeof route === "string" && route.startsWith("/")) return route;
-
-  const targetType =
-    typeof payload.target_type === "string" ? payload.target_type : null;
-  const rawTargetId =
-    typeof payload.target_id === "number" ||
-    typeof payload.target_id === "string"
-      ? Number(payload.target_id)
-      : Number.NaN;
-  const targetId =
-    Number.isSafeInteger(rawTargetId) && rawTargetId > 0 ? rawTargetId : null;
-
-  return getNotificationRoute(targetType, targetId);
+  return parseNotificationTarget(data);
 }
 
 async function registerPushToken() {
@@ -204,6 +187,7 @@ export async function deactivateLastRegisteredPushToken() {
 
 export function useRegisterPushToken({ enabled }: UseRegisterPushTokenOptions) {
   const isRegisteringRef = useRef(false);
+  const handledNotificationIdsRef = useRef(new Set<string>());
 
   useEffect(() => {
     if (!enabled || isRegisteringRef.current) return;
@@ -248,12 +232,18 @@ export function useRegisterPushToken({ enabled }: UseRegisterPushTokenOptions) {
 
       subscription = Notifications.addNotificationResponseReceivedListener(
         (response) => {
-          const route = getRouteFromNotificationData(
+          const requestId = response.notification.request.identifier;
+          if (handledNotificationIdsRef.current.has(requestId)) return;
+          handledNotificationIdsRef.current.add(requestId);
+
+          const target = getRouteFromNotificationData(
             response.notification.request.content.data,
           );
 
-          if (route) {
-            router.push(route as Href);
+          if (target) {
+            void openNotificationTarget(target).catch((error) => {
+              console.warn("[PushNotification] Failed to open target:", error);
+            });
           }
         },
       );
@@ -262,12 +252,18 @@ export function useRegisterPushToken({ enabled }: UseRegisterPushTokenOptions) {
         if (!isMounted) return;
         if (!response) return;
 
-        const route = getRouteFromNotificationData(
+        const requestId = response.notification.request.identifier;
+        if (handledNotificationIdsRef.current.has(requestId)) return;
+        handledNotificationIdsRef.current.add(requestId);
+
+        const target = getRouteFromNotificationData(
           response.notification.request.content.data,
         );
 
-        if (route) {
-          router.push(route as Href);
+        if (target) {
+          void openNotificationTarget(target).catch((error) => {
+            console.warn("[PushNotification] Failed to open target:", error);
+          });
           void Notifications.clearLastNotificationResponseAsync();
         }
       });
