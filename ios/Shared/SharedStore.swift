@@ -4,6 +4,8 @@ import Foundation
 class SharedStore: NSObject {
 
   private let suite = "group.com.spot.app"
+  private let analyzeResultQueueKey = "analyzeResultQueue"
+  private let legacyAnalyzeResultKey = "latestAnalyzeResult"
 
   private func defaults() -> UserDefaults? {
     UserDefaults(suiteName: suite)
@@ -29,18 +31,50 @@ class SharedStore: NSObject {
   }
 
   @objc func setLatestAnalyzeResult(_ json: String) {
-    defaults()?.set(json, forKey: "latestAnalyzeResult")
-    defaults()?.synchronize()
+    guard let defaults = defaults() else { return }
+    var queue = defaults.stringArray(forKey: analyzeResultQueueKey) ?? []
+
+    if let legacyResult = defaults.string(forKey: legacyAnalyzeResultKey) {
+      queue.insert(legacyResult, at: 0)
+      defaults.removeObject(forKey: legacyAnalyzeResultKey)
+    }
+
+    queue.append(json)
+    defaults.set(queue, forKey: analyzeResultQueueKey)
+    defaults.synchronize()
   }
 
   @objc func getLatestAnalyzeResult(_ resolve: @escaping (Any?) -> Void, rejecter reject: @escaping (String, String, Error?) -> Void) {
-    resolve(defaults()?.string(forKey: "latestAnalyzeResult"))
+    guard let defaults = defaults() else {
+      resolve(nil)
+      return
+    }
+
+    if let first = defaults.stringArray(forKey: analyzeResultQueueKey)?.first {
+      resolve(first)
+      return
+    }
+
+    resolve(defaults.string(forKey: legacyAnalyzeResultKey))
   }
 
   @objc func clearLatestAnalyzeResult() {
-    defaults()?.removeObject(forKey: "latestAnalyzeResult")
-    defaults()?.removeObject(forKey: "latestAnalyzeUrl")
-    defaults()?.synchronize()
+    guard let defaults = defaults() else { return }
+    var queue = defaults.stringArray(forKey: analyzeResultQueueKey) ?? []
+
+    if !queue.isEmpty {
+      queue.removeFirst()
+      if queue.isEmpty {
+        defaults.removeObject(forKey: analyzeResultQueueKey)
+      } else {
+        defaults.set(queue, forKey: analyzeResultQueueKey)
+      }
+    } else {
+      defaults.removeObject(forKey: legacyAnalyzeResultKey)
+    }
+
+    defaults.removeObject(forKey: "latestAnalyzeUrl")
+    defaults.synchronize()
   }
 
   @objc func setPendingAnalyzeUrl(_ url: String) {

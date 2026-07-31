@@ -8,24 +8,22 @@ import {
   parseAnalyzeJson,
 } from "@/src/lib/analyze/analyzeResult";
 
-export default function AnalyzeResultPage() {
-  useEffect(() => {
-    const run = async () => {
+let consumeAnalyzeResultsPromise: Promise<void> | null = null;
+
+async function consumeAnalyzeResults() {
+  if (consumeAnalyzeResultsPromise) return consumeAnalyzeResultsPromise;
+
+  const operation = (async () => {
+    const { SharedStore } = NativeModules;
+
+    if (!SharedStore?.getLatestAnalyzeResult) return;
+
+    // 비정상 네이티브 데이터로 무한 반복하지 않도록 한 번에 처리할 상한을 둔다.
+    for (let index = 0; index < 100; index += 1) {
+      const json = await SharedStore.getLatestAnalyzeResult();
+      if (!json) break;
+
       try {
-        const { SharedStore } = NativeModules;
-
-        if (!SharedStore?.getLatestAnalyzeResult) {
-          router.replace("/(tabs)/map");
-          return;
-        }
-
-        const json = await SharedStore.getLatestAnalyzeResult();
-
-        if (!json) {
-          router.replace("/(tabs)/map");
-          return;
-        }
-
         const items = mapAnalyzeResponseToItems(parseAnalyzeJson(json));
 
         if (items.length > 0) {
@@ -33,11 +31,29 @@ export default function AnalyzeResultPage() {
             receivedAt: Date.now(),
           });
         }
+      } catch (error) {
+        console.warn("[AnalyzeResult] invalid queued result:", error);
+      } finally {
+        if (!SharedStore?.clearLatestAnalyzeResult) break;
+        await SharedStore.clearLatestAnalyzeResult();
+      }
+    }
+  })();
 
-        if (SharedStore?.clearLatestAnalyzeResult) {
-          await SharedStore.clearLatestAnalyzeResult();
-        }
+  consumeAnalyzeResultsPromise = operation;
 
+  try {
+    await operation;
+  } finally {
+    consumeAnalyzeResultsPromise = null;
+  }
+}
+
+export default function AnalyzeResultPage() {
+  useEffect(() => {
+    const run = async () => {
+      try {
+        await consumeAnalyzeResults();
         router.replace("/(tabs)/map");
       } catch {
         router.replace("/(tabs)/map");

@@ -27,9 +27,13 @@ export type SavePlaceItem = {
 };
 
 type Props = {
-  visible: boolean;
   places: SavePlaceItem[];
   initialSelectedIds?: string[];
+  currentPage?: number;
+  totalPages?: number;
+  saving?: boolean;
+  onPrevious?: () => void;
+  onNext?: () => void;
   onClose: () => void;
   onChangeSelection?: (ids: string[]) => void;
   onConfirm?: (ids: string[]) => void;
@@ -38,9 +42,13 @@ type Props = {
 const FOOTER_HEIGHT = 84;
 
 function SavePlacesBottomSheet({
-  visible,
   places,
   initialSelectedIds = [],
+  currentPage = 1,
+  totalPages = 1,
+  saving = false,
+  onPrevious,
+  onNext,
   onClose,
   onChangeSelection,
   onConfirm,
@@ -100,9 +108,13 @@ function SavePlacesBottomSheet({
   }, [isAllChecked, places, maxSelect]);
 
   const handleConfirm = useCallback(() => {
+    if (saving) return;
     onConfirm?.(selectedIds);
-    sheetRef.current?.close();
-  }, [onConfirm, selectedIds]);
+  }, [onConfirm, saving, selectedIds]);
+
+  const hasMultiplePages = totalPages > 1;
+  const canGoPrevious = currentPage > 1 && !saving;
+  const canGoNext = currentPage < totalPages && !saving;
 
   const renderFooter = useCallback(
     (props: BottomSheetFooterProps) => (
@@ -110,17 +122,28 @@ function SavePlacesBottomSheet({
         <View style={styles.footer}>
           <Pressable
             onPress={handleConfirm}
-            style={[styles.cta, selectedIds.length === 0 && styles.ctaDisabled]}
-            disabled={selectedIds.length === 0}
+            style={[
+              styles.cta,
+              (selectedIds.length === 0 || saving) && styles.ctaDisabled,
+            ]}
+            disabled={selectedIds.length === 0 || saving}
+            accessibilityRole="button"
+            accessibilityLabel={`선택한 장소 ${selectedIds.length}곳 저장하기`}
+            accessibilityState={{
+              disabled: selectedIds.length === 0 || saving,
+              busy: saving,
+            }}
           >
             <Text style={styles.ctaText}>
-              장소 {selectedIds.length}곳 저장하기
+              {saving
+                ? "저장 중..."
+                : `장소 ${selectedIds.length}곳 저장하기`}
             </Text>
           </Pressable>
         </View>
       </BottomSheetFooter>
     ),
-    [selectedIds.length, handleConfirm],
+    [selectedIds.length, handleConfirm, saving],
   );
 
   return (
@@ -128,7 +151,7 @@ function SavePlacesBottomSheet({
       ref={sheetRef}
       index={2}
       snapPoints={snapPoints}
-      enablePanDownToClose
+      enablePanDownToClose={!saving}
       onClose={onClose}
       backgroundStyle={{ backgroundColor: Colors.white }}
       handleIndicatorStyle={{ backgroundColor: Colors.gray_300 }}
@@ -144,13 +167,81 @@ function SavePlacesBottomSheet({
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>장소 선택하기</Text>
-          <Text style={styles.headerSubTitle}>
-            SPOT에 저장할 장소를 선택해주세요
-          </Text>
+          <Pressable
+            onPress={onClose}
+            disabled={saving}
+            hitSlop={12}
+            style={[styles.closeButton, saving && styles.disabledControl]}
+            accessibilityRole="button"
+            accessibilityLabel="추출 결과 닫기"
+          >
+            <Image
+              source={require("@/assets/images/x-gray.png")}
+              style={styles.closeIcon}
+            />
+          </Pressable>
+
+          <View style={styles.navigationRow}>
+            <Pressable
+              onPress={onPrevious}
+              disabled={!canGoPrevious}
+              hitSlop={12}
+              style={[
+                styles.navigationButton,
+                !hasMultiplePages && styles.hiddenControl,
+                !canGoPrevious && hasMultiplePages && styles.disabledControl,
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel="이전 추출 결과"
+              accessibilityState={{ disabled: !canGoPrevious }}
+            >
+              <Image
+                source={require("@/assets/images/arrow-left-gray.png")}
+                style={styles.navigationIcon}
+              />
+            </Pressable>
+
+            <View style={styles.headerCenter}>
+              <Text style={styles.headerTitle}>장소 선택하기</Text>
+              {hasMultiplePages ? (
+                <Text style={styles.pageIndicator}>
+                  {currentPage} / {totalPages}
+                </Text>
+              ) : null}
+              <Text style={styles.headerSubTitle}>
+                SPOT에 저장할 장소를 선택해주세요
+              </Text>
+            </View>
+
+            <Pressable
+              onPress={onNext}
+              disabled={!canGoNext}
+              hitSlop={12}
+              style={[
+                styles.navigationButton,
+                !hasMultiplePages && styles.hiddenControl,
+                !canGoNext && hasMultiplePages && styles.disabledControl,
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel="다음 추출 결과"
+              accessibilityState={{ disabled: !canGoNext }}
+            >
+              <Image
+                source={require("@/assets/images/arrow-right-gray.png")}
+                style={styles.navigationIcon}
+              />
+            </Pressable>
+          </View>
 
           <View style={styles.rowBetween}>
-            <Pressable onPress={toggleAll} style={styles.checkAll}>
+            <Pressable
+              onPress={toggleAll}
+              disabled={saving}
+              style={styles.checkAll}
+              accessibilityRole="checkbox"
+              accessibilityLabel="장소 전체 선택"
+              accessibilityState={{ checked: isAllChecked, disabled: saving }}
+            >
               <View
                 style={[
                   styles.checkbox,
@@ -174,9 +265,10 @@ function SavePlacesBottomSheet({
             <Pressable
               key={item.id}
               onPress={() => toggleOne(item.id)}
+              disabled={saving}
               style={styles.card}
               accessibilityRole="checkbox"
-              accessibilityState={{ checked }}
+              accessibilityState={{ checked, disabled: saving }}
               accessibilityLabel={`${item.name} 선택`}
             >
               <Image
@@ -230,10 +322,53 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.white,
     paddingVertical: 16,
   },
+  closeButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: Colors.gray_100,
+    alignItems: "center",
+    justifyContent: "center",
+    alignSelf: "flex-end",
+    marginBottom: 8,
+  },
+  closeIcon: {
+    width: 16,
+    height: 16,
+  },
+  navigationRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  navigationButton: {
+    width: 40,
+    height: 48,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  navigationIcon: {
+    width: 24,
+    height: 24,
+  },
+  headerCenter: {
+    flex: 1,
+    alignItems: "center",
+  },
+  hiddenControl: {
+    opacity: 0,
+  },
+  disabledControl: {
+    opacity: 0.3,
+  },
   headerTitle: {
     textAlign: "center",
     ...TextStyles.Bold16,
     color: Colors.gray_600,
+  },
+  pageIndicator: {
+    ...TextStyles.Medium12,
+    color: Colors.gray_400,
+    marginTop: 2,
   },
   headerSubTitle: {
     textAlign: "center",

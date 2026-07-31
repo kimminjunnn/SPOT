@@ -6,7 +6,8 @@ final class ShareViewController: UIViewController {
 
   private let suiteName = "group.com.spot.app"
   private let tokenKey = "accessToken"
-  private let latestResultKey = "latestAnalyzeResult"
+  private let analyzeResultQueueKey = "analyzeResultQueue"
+  private let legacyAnalyzeResultKey = "latestAnalyzeResult"
 
 
   private let baseURL = "http://3.34.94.184:8001"
@@ -169,7 +170,15 @@ final class ShareViewController: UIViewController {
 
   private func saveLatestResult(_ json: String) {
     let d = UserDefaults(suiteName: suiteName)
-    d?.set(json, forKey: latestResultKey)
+    var queue = d?.stringArray(forKey: analyzeResultQueueKey) ?? []
+
+    if let legacyResult = d?.string(forKey: legacyAnalyzeResultKey) {
+      queue.insert(legacyResult, at: 0)
+      d?.removeObject(forKey: legacyAnalyzeResultKey)
+    }
+
+    queue.append(json)
+    d?.set(queue, forKey: analyzeResultQueueKey)
     d?.removeObject(forKey: "pendingAnalyzeUrl")
     d?.removeObject(forKey: "pendingAnalyzeTicketId")
     d?.synchronize()

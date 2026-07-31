@@ -17,6 +17,7 @@ import SavePlacesBottomSheet from "@/src/components/bottomSheet/SavePlacesBottom
 import SearchDetailBottomSheet from "@/src/components/bottomSheet/SearchDetailBottomSheet";
 import SearchDetailsBottomSheet from "@/src/components/bottomSheet/SearchDetailsBottomSheet";
 import UserLocationMarker from "@/src/components/map/UserLocationMarker";
+import ConfirmModal from "@/src/components/common/ConfirmModal";
 
 import { useAnalyzeResultStore } from "@/src/stores/useAnalyzeResultStore";
 import { useAuthStore } from "@/src/stores/useAuthStore";
@@ -63,10 +64,22 @@ export default function Map() {
   const unfocus = useSearchStore((s) => s.unfocus);
   const clearPendingDetail = useSearchStore((s) => s.clearPendingDetail);
 
-  const analyzeVisible = useAnalyzeResultStore((s) => s.visible);
-  const analyzePlaces = useAnalyzeResultStore((s) => s.places);
+  const analyzeBatches = useAnalyzeResultStore((s) => s.batches);
+  const analyzeCurrentIndex = useAnalyzeResultStore((s) => s.currentIndex);
+  const analyzeCurrent = analyzeBatches[analyzeCurrentIndex] ?? null;
+  const analyzeVisible = analyzeCurrent !== null;
   const clearAnalyze = useAnalyzeResultStore((s) => s.clear);
-  const closeAnalyze = useAnalyzeResultStore((s) => s.close);
+  const goPreviousAnalyze = useAnalyzeResultStore((s) => s.goPrevious);
+  const goNextAnalyze = useAnalyzeResultStore((s) => s.goNext);
+  const updateAnalyzeSelection = useAnalyzeResultStore(
+    (s) => s.updateSelection,
+  );
+  const [savingAnalyzeBatchId, setSavingAnalyzeBatchId] = useState<
+    string | null
+  >(null);
+  const [closeAnalyzeConfirmVisible, setCloseAnalyzeConfirmVisible] =
+    useState(false);
+  const [analyzeSheetInstance, setAnalyzeSheetInstance] = useState(0);
 
   useEffect(() => {
     hydrate();
@@ -81,8 +94,8 @@ export default function Map() {
 
   useEffect(() => {
     console.log("[Map] analyzeVisible:", analyzeVisible);
-    console.log("[Map] analyzePlaces:", analyzePlaces.length);
-  }, [analyzeVisible, analyzePlaces]);
+    console.log("[Map] analyzeBatches:", analyzeBatches.length);
+  }, [analyzeBatches.length, analyzeVisible]);
 
   useEffect(() => {
     if (!pendingDetailGid || !coords) return;
@@ -197,7 +210,11 @@ export default function Map() {
     }
   };
 
-  const savePlacesRequest = async (placeIds: number[]) => {
+  const savePlacesRequest = async (batchId: string, placeIds: number[]) => {
+    if (savingAnalyzeBatchId) return;
+
+    setSavingAnalyzeBatchId(batchId);
+
     try {
       await savePlaces({
         placeIds,
@@ -205,13 +222,22 @@ export default function Map() {
         sourceType: "instagram",
       });
 
-      clearAnalyze();
-    } catch (err) {
+      const store = useAnalyzeResultStore.getState();
+      const currentBatch = store.batches[store.currentIndex];
+
+      if (currentBatch?.id === batchId) {
+        store.completeCurrent();
+      }
+    } catch {
       Alert.alert("오류", "장소 저장에 실패했습니다.");
+    } finally {
+      setSavingAnalyzeBatchId(null);
     }
   };
 
   const handleConfirmSavedPlaces = (ids: string[]) => {
+    if (!analyzeCurrent) return;
+
     if (!ids.length) {
       Alert.alert("알림", "저장할 장소를 선택해주세요.");
       return;
@@ -226,8 +252,25 @@ export default function Map() {
       return;
     }
 
-    savePlacesRequest(placeIds);
+    void savePlacesRequest(analyzeCurrent.id, placeIds);
   };
+
+  const handleRequestCloseAnalyze = () => {
+    if (savingAnalyzeBatchId) return;
+
+    if (analyzeBatches.length > 1) {
+      setCloseAnalyzeConfirmVisible(true);
+      return;
+    }
+
+    clearAnalyze();
+  };
+
+  const handleKeepAnalyzeOpen = () => {
+    setCloseAnalyzeConfirmVisible(false);
+    setAnalyzeSheetInstance((instance) => instance + 1);
+  };
+
   return (
     <View style={styles.container}>
       {/* 검색창 */}
@@ -267,16 +310,20 @@ export default function Map() {
       </NaverMapView>
 
       {/* 바텀 시트*/}
-      {analyzeVisible ? (
+      {analyzeCurrent ? (
         <SavePlacesBottomSheet
-          visible={analyzeVisible}
-          places={analyzePlaces}
-          initialSelectedIds={[]}
-          onClose={() => {
-            if (!useAnalyzeResultStore.getState().visible) return;
-            closeAnalyze();
-          }}
-          onChangeSelection={() => {}}
+          key={`${analyzeCurrent.id}-${analyzeSheetInstance}`}
+          places={analyzeCurrent.places}
+          initialSelectedIds={analyzeCurrent.selectedIds}
+          currentPage={analyzeCurrentIndex + 1}
+          totalPages={analyzeBatches.length}
+          saving={savingAnalyzeBatchId === analyzeCurrent.id}
+          onPrevious={goPreviousAnalyze}
+          onNext={goNextAnalyze}
+          onClose={handleRequestCloseAnalyze}
+          onChangeSelection={(ids) =>
+            updateAnalyzeSelection(analyzeCurrent.id, ids)
+          }
           onConfirm={handleConfirmSavedPlaces}
         />
       ) : (
@@ -304,6 +351,20 @@ export default function Map() {
           )}
         </>
       )}
+
+      <ConfirmModal
+        visible={closeAnalyzeConfirmVisible}
+        title="추출 결과를 모두 닫을까요?"
+        description={`아직 저장하지 않은 추출 결과가 ${analyzeBatches.length}건 있어요.`}
+        cancelLabel="계속 보기"
+        confirmLabel="모두 닫기"
+        closeOnBackdropPress={false}
+        onCancel={handleKeepAnalyzeOpen}
+        onConfirm={() => {
+          setCloseAnalyzeConfirmVisible(false);
+          clearAnalyze();
+        }}
+      />
     </View>
   );
 }
