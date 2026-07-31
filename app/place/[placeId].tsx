@@ -110,11 +110,7 @@ export default function PlaceDetailScreen() {
   const commentModalRef = useRef<CommentWriteModalRef>(null);
 
   const fallbackImages = useMemo(
-    () => [
-      require("@/assets/images/example2.png"),
-      require("@/assets/images/default-place.png"),
-      require("@/assets/images/SPOT.png"),
-    ],
+    () => [require("@/assets/images/default-place.png")],
     [],
   );
 

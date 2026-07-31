@@ -12,6 +12,31 @@ import {
   mapHomePlaceItemsToPlaces,
 } from "@/src/lib/mappers/placeMapper";
 
+const normalizePhotoList = (...sources: unknown[]): string[] => {
+  const photos: string[] = [];
+  const seen = new Set<string>();
+
+  const append = (source: unknown): void => {
+    if (Array.isArray(source)) {
+      source.forEach(append);
+      return;
+    }
+
+    if (typeof source !== "string") return;
+
+    source.split(",").forEach((value) => {
+      const photo = value.trim();
+      if (!photo || seen.has(photo)) return;
+
+      seen.add(photo);
+      photos.push(photo);
+    });
+  };
+
+  sources.forEach(append);
+  return photos;
+};
+
 export async function fetchMapPlaces(params: {
   latitude: number;
   longitude: number;
@@ -125,11 +150,12 @@ export async function fetchPlaceMore(params: {
         params: { place_id: placeId, lat, lng },
       },
     );
-    const { photos, ...place } = res.data.places;
+    const { photos, photo, ...place } = res.data.places;
+    const normalizedPhotos = normalizePhotoList(photos, photo);
     const data: ApiPlaceMoreResponse = {
       places: {
         ...place,
-        photo: photos ?? null,
+        photo: normalizedPhotos.length > 0 ? normalizedPhotos : null,
       },
       comments: [],
     };

@@ -71,7 +71,9 @@ export type ApiPlaceMoreResponse = {
 
 export type ApiPlaceDetailsResponse = {
   places: Omit<ApiPlace, "photo"> & {
-    photos: string[];
+    // 상세 API는 환경에 따라 photo/photos 및 중첩 배열 형태로 응답한다.
+    photo?: unknown;
+    photos?: unknown;
   };
 };
 
