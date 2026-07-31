@@ -16,6 +16,7 @@ import { calculateDistanceMeters, isValidCoordinate } from "@/src/utils/distance
 import { formatDistance } from "@/src/utils/format";
 import { getPlaceCardSaverProps } from "@/src/lib/mappers/placeCardSavers";
 import PlaceNativeAdCard from "@/src/components/ads/PlaceNativeAdCard";
+import SavedPlacesEmptyState from "@/src/components/common/SavedPlacesEmptyState";
 import { insertAdSlots } from "@/src/lib/ads/insertAdSlots";
 import type { BookmarkSource } from "@/src/lib/api/bookmark";
 
@@ -162,71 +163,75 @@ export const PlaceTabSection = ({
 
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{ paddingHorizontal: 16 }}
+        contentContainerStyle={{ paddingHorizontal: 16, flexGrow: 1 }}
         showsVerticalScrollIndicator={false}
         onScroll={handleScroll}
         scrollEventThrottle={16}
       >
-        {listItems.map((listItem) => {
-          if (listItem.type === "ad") {
-            return <PlaceNativeAdCard key={listItem.key} />;
-          }
+        {visiblePlaceList.length === 0 ? (
+          <SavedPlacesEmptyState />
+        ) : (
+          listItems.map((listItem) => {
+            if (listItem.type === "ad") {
+              return <PlaceNativeAdCard key={listItem.key} />;
+            }
 
-          const p = listItem.item;
-          const imgs =
-            Array.isArray(p.photos) && p.photos.length > 0
-              ? p.photos.map((u) => ({ uri: u }))
-              : dummyCardFallbackImgs;
+            const p = listItem.item;
+            const imgs =
+              Array.isArray(p.photos) && p.photos.length > 0
+                ? p.photos.map((u) => ({ uri: u }))
+                : dummyCardFallbackImgs;
 
-          const saverProps = getPlaceCardSaverProps(p);
+            const saverProps = getPlaceCardSaverProps(p);
 
-          const placeId = getPlaceId(p);
-          const displayDistanceM = getDisplayDistanceM(p, currentCoords);
+            const placeId = getPlaceId(p);
+            const displayDistanceM = getDisplayDistanceM(p, currentCoords);
 
-          return (
-            <PlaceCard
-              key={listItem.key}
-              name={p.name}
-              category={p.list}
-              address={p.address}
-              images={imgs as any[]}
-              savedUsers={saverProps.savedUsers}
-              savedCount={saverProps.savedCount}
-              showDirectionButton={true}
-              rating={p.rating}
-              reviewCount={p.ratingCount}
-              showBookmark={true}
-              isBookmarked={p.marked}
-              distanceText={
-                Number.isFinite(displayDistanceM)
-                  ? formatDistance(displayDistanceM)
-                  : undefined
-              }
-              onToggleBookmark={() => onToggleBookmark?.(p)}
-              onPress={() => {
-                if (placeId == null) return;
+            return (
+              <PlaceCard
+                key={listItem.key}
+                name={p.name}
+                category={p.list}
+                address={p.address}
+                images={imgs as any[]}
+                savedUsers={saverProps.savedUsers}
+                savedCount={saverProps.savedCount}
+                showDirectionButton={true}
+                rating={p.rating}
+                reviewCount={p.ratingCount}
+                showBookmark={true}
+                isBookmarked={p.marked}
+                distanceText={
+                  Number.isFinite(displayDistanceM)
+                    ? formatDistance(displayDistanceM)
+                    : undefined
+                }
+                onToggleBookmark={() => onToggleBookmark?.(p)}
+                onPress={() => {
+                  if (placeId == null) return;
 
-                router.push({
-                  pathname: "/place/[placeId]",
-                  params: {
-                    placeId: String(placeId),
-                    lat: p.lat,
-                    lng: p.lng,
-                    sourceType: bookmarkSource.sourceType,
-                    sourceUserId:
-                      bookmarkSource.sourceUserId != null
-                        ? String(bookmarkSource.sourceUserId)
-                        : undefined,
-                    sourceCommentId:
-                      bookmarkSource.sourceCommentId != null
-                        ? String(bookmarkSource.sourceCommentId)
-                        : undefined,
-                  },
-                });
-              }}
-            />
-          );
-        })}
+                  router.push({
+                    pathname: "/place/[placeId]",
+                    params: {
+                      placeId: String(placeId),
+                      lat: p.lat,
+                      lng: p.lng,
+                      sourceType: bookmarkSource.sourceType,
+                      sourceUserId:
+                        bookmarkSource.sourceUserId != null
+                          ? String(bookmarkSource.sourceUserId)
+                          : undefined,
+                      sourceCommentId:
+                        bookmarkSource.sourceCommentId != null
+                          ? String(bookmarkSource.sourceCommentId)
+                          : undefined,
+                    },
+                  });
+                }}
+              />
+            );
+          })
+        )}
       </ScrollView>
 
       <OptionModal

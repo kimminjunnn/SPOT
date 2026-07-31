@@ -1,10 +1,9 @@
 import React, { useEffect, useState, useCallback, useMemo } from "react";
-import { ActivityIndicator, View, Text } from "react-native";
+import { ActivityIndicator, View } from "react-native";
 import PlaceCard from "@/src/components/common/PlaceCard";
+import SavedPlacesEmptyState from "@/src/components/common/SavedPlacesEmptyState";
 import type { Place } from "@/src/types/place";
 import { fetchMyNewSavedPlaces } from "@/src/lib/api/places";
-import { Colors } from "@/src/styles/Colors";
-import { TextStyles } from "@/src/styles/TextStyles";
 import { useLocationStore } from "@/src/stores/useLocationStore";
 import { useSavedPlacesStore } from "@/src/stores/useSavedPlacesStore";
 
@@ -213,19 +212,7 @@ export default function SavedPlacesTab() {
       <View style={{ paddingHorizontal: 16, paddingBottom: 24 }}>
         {/* 목록 없음: 필터 결과 기준 */}
         {filteredItems.length === 0 && !loading && (
-          <View style={{ flex: 1, alignItems: "center", paddingTop: 150 }}>
-            <Text
-              style={[
-                TextStyles.SemiBold16,
-                { color: Colors.gray_300, fontSize: 20 },
-              ]}
-            >
-              저장된 장소가 없어요
-            </Text>
-            <Text style={[TextStyles.Regular12, { color: Colors.gray_300 }]}>
-              첫 장소를 저장하고, 여정을 시작해 보세요!
-            </Text>
-          </View>
+          <SavedPlacesEmptyState />
         )}
 
         {/* 리스트: 필터 결과 기준 */}
