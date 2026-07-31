@@ -16,6 +16,7 @@ import RecentFriendSearch from "@/src/components/friends/RecentFriendSearch";
 import FriendSearchResult from "@/src/components/friends/FriendSearchResult";
 import {
   searchFriends,
+  reconcileFriendSearchStatuses,
   sendFollowRequest,
   acceptFollowRequest,
   getFriendStatus,
@@ -26,6 +27,7 @@ import { useFriendsStore } from "@/src/stores/useFriendsStore";
 import { useRecentFriendSearchStore } from "@/src/stores/useRecentFriendSearchStore";
 import { useMyProfileStore } from "@/src/stores/useMyProfileStore";
 import { openFriendHome } from "@/src/lib/navigation/openFriendHome";
+import { toFriendSearchStatus } from "@/src/lib/friends/friendStatus";
 
 export default function SearchFriendScreen() {
   const [searchInputText, setSearchInputText] = useState("");
@@ -81,7 +83,8 @@ export default function SearchFriendScreen() {
       const seq = ++reqSeqRef.current;
 
       try {
-        const data = await searchFriends(keyword, controller.signal);
+        const searchData = await searchFriends(keyword, controller.signal);
+        const data = await reconcileFriendSearchStatuses(searchData);
 
         if (seq !== reqSeqRef.current) return;
         setResults(data);
@@ -196,11 +199,7 @@ export default function SearchFriendScreen() {
 
             if (relationship.status !== "friend") {
               const nextStatus: FriendSearchItem["status"] =
-                relationship.status === "waiting"
-                  ? "request_sent"
-                  : relationship.status === "block"
-                    ? "blocked"
-                    : "none";
+                toFriendSearchStatus(relationship.status);
 
               if (nextStatus === "none") {
                 removeFriend(friend.id);

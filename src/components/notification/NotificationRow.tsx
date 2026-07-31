@@ -7,9 +7,36 @@ import { TextStyles } from "@/src/styles/TextStyles";
 
 type NotificationRowProps = {
   notification: NotificationDetail;
-  accepting?: boolean;
-  onAccept?: () => void;
+  followAction?: NotificationFollowAction;
+  followActionLoading?: boolean;
+  onPressFollowAction?: () => void;
   onPress?: () => void;
+};
+
+export type NotificationFollowAction =
+  | "accept"
+  | "followBack"
+  | "following";
+
+const FOLLOW_ACTION_META: Record<
+  NotificationFollowAction,
+  { label: string; loadingLabel: string; visuallyDisabled: boolean }
+> = {
+  accept: {
+    label: "팔로우 수락",
+    loadingLabel: "수락 중",
+    visuallyDisabled: false,
+  },
+  followBack: {
+    label: "맞팔로우",
+    loadingLabel: "처리 중",
+    visuallyDisabled: false,
+  },
+  following: {
+    label: "팔로잉",
+    loadingLabel: "처리 중",
+    visuallyDisabled: true,
+  },
 };
 
 const DEFAULT_PROFILE_IMAGE = require("@/assets/images/default-profile.png");
@@ -72,15 +99,22 @@ function formatNotificationTime(value: string) {
 
 export default function NotificationRow({
   notification,
-  accepting = false,
-  onAccept,
+  followAction,
+  followActionLoading = false,
+  onPressFollowAction,
   onPress,
 }: NotificationRowProps) {
   const isFollowNotification =
     notification.type === "follow_request" ||
     notification.type === "follow_accept";
-  const canAccept = notification.type === "follow_request" && !!onAccept;
-  const photoUri = notification.photo?.trim();
+  const actionMeta = followAction
+    ? FOLLOW_ACTION_META[followAction]
+    : undefined;
+  const rawPhoto =
+    notification.type === "instagram_extract"
+      ? notification.placePhoto
+      : notification.photo;
+  const photoUri = typeof rawPhoto === "string" ? rawPhoto.trim() : "";
   const hasPhoto = !!photoUri;
   const imageSource = hasPhoto
     ? { uri: photoUri }
@@ -132,7 +166,7 @@ export default function NotificationRow({
 
           {notification.placeName ? (
             <Text style={styles.placeName} numberOfLines={1}>
-              📍 {notification.placeName}
+              {notification.placeName}
             </Text>
           ) : null}
 
@@ -142,17 +176,20 @@ export default function NotificationRow({
         </View>
       </Pressable>
 
-      {canAccept && (
+      {actionMeta && onPressFollowAction ? (
         <View style={styles.buttonArea}>
           <SpotButton
-            label={accepting ? "수락 중" : "팔로우 수락"}
+            label={
+              followActionLoading ? actionMeta.loadingLabel : actionMeta.label
+            }
             variant="primary"
             size="small"
-            disabled={accepting}
-            onPress={onAccept}
+            disabled={followActionLoading}
+            visuallyDisabled={actionMeta.visuallyDisabled}
+            onPress={onPressFollowAction}
           />
         </View>
-      )}
+      ) : null}
     </View>
   );
 }

@@ -1,7 +1,10 @@
 // src/lib/api/friends.ts
 import { api8000, api8001 } from "@/src/lib/api/client";
-import { useAuthStore } from "@/src/stores/useAuthStore";
 import { type FriendStatus } from "@/src/types/friends";
+import {
+  toFriendSearchStatus,
+  type FriendRelationshipStatus,
+} from "@/src/lib/friends/friendStatus";
 
 export type ApiFriend = {
   comment: string | null;
@@ -75,12 +78,6 @@ export type FriendSearchItem = {
   status: FriendStatus;
 };
 
-export type FriendRelationshipStatus =
-  | "friend"
-  | "waiting"
-  | "block"
-  | "none";
-
 export type FriendStatusResponse = {
   friend_id: number;
   status: FriendRelationshipStatus;
@@ -150,6 +147,29 @@ export async function getFriendStatus(friend_id: number) {
     `/friends/status/${friend_id}`,
   );
   return res.data;
+}
+
+export async function reconcileFriendSearchStatuses(
+  items: FriendSearchItem[],
+): Promise<FriendSearchItem[]> {
+  return Promise.all(
+    items.map(async (item) => {
+      // 잘못된 "팔로잉" 버튼이 노출되는 것으로 확인된 결과만 관계 API로
+      // 재검증해 검색 요청마다 불필요한 추가 호출이 늘어나는 것을 막는다.
+      if (item.status !== "friends") return item;
+
+      try {
+        const relationship = await getFriendStatus(item.id);
+        return {
+          ...item,
+          status: toFriendSearchStatus(relationship.status),
+        };
+      } catch (error) {
+        console.warn("[friends/search] 관계 상태 재검증 실패:", item.id, error);
+        return item;
+      }
+    }),
+  );
 }
 
 // 팔로우 거절

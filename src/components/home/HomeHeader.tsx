@@ -8,10 +8,10 @@ import { useMyProfileStore } from "@/src/stores/useMyProfileStore";
 import { useFriendsStore } from "@/src/stores/useFriendsStore";
 
 import type { SelectedUser as StorySelectedUser } from "@/src/components/home/StoryList";
-import { blockFriend } from "@/src/lib/api/friends";
+import { blockFriend, type Friend } from "@/src/lib/api/friends";
 
 type HomeHeaderProps = {
-  friends: any[];
+  friends: Friend[];
   selectedUser: StorySelectedUser | null;
   onSelectStory: (user: StorySelectedUser | null) => void;
   showStoryList?: boolean;
@@ -48,6 +48,8 @@ export const HomeHeader = ({
   );
 
   const loadFriends = useFriendsStore((s) => s.loadFriends);
+  const removeFriend = useFriendsStore((s) => s.removeFriend);
+  const upsertFriend = useFriendsStore((s) => s.upsertFriend);
   const handlePressEditProfile = () => {
     router.push("/profile/edit");
   };
@@ -60,12 +62,19 @@ export const HomeHeader = ({
         style: "destructive",
         onPress: async () => {
           if (!selectedUser?.userId) return;
+          const selectedFriendId = selectedUser.userId;
+          const previousFriend = useFriendsStore
+            .getState()
+            .friends.find((friend) => friend.id === selectedFriendId);
+
+          removeFriend(selectedFriendId);
+          onSelectStory(null);
 
           try {
-            await blockFriend(selectedUser.userId);
-            loadFriends({ force: true });
-            onSelectStory(null);
-          } catch (e) {
+            await blockFriend(selectedFriendId);
+            void loadFriends({ force: true });
+          } catch {
+            if (previousFriend) upsertFriend(previousFriend);
             Alert.alert("차단 실패", "다시 시도해주세요");
           }
         },

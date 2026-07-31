@@ -16,13 +16,14 @@ export default function FriendsScreen() {
   const loading = useFriendsStore((s) => s.loading);
   const error = useFriendsStore((s) => s.error);
   const loadFriends = useFriendsStore((s) => s.loadFriends);
+  const removeFriend = useFriendsStore((s) => s.removeFriend);
   const [followingById, setFollowingById] = useState<Record<number, boolean>>(
     {},
   );
   const actioningIdsRef = useRef(new Set<number>());
 
   useEffect(() => {
-    loadFriends();
+    loadFriends({ force: true });
   }, [loadFriends]);
 
   const handlePressFollow = useCallback(
@@ -34,6 +35,7 @@ export default function FriendsScreen() {
       try {
         if (isFollowing) {
           await deleteFriend(friendId);
+          removeFriend(friendId);
         } else {
           await sendFollowRequest(friendId);
         }
@@ -53,7 +55,7 @@ export default function FriendsScreen() {
         actioningIdsRef.current.delete(friendId);
       }
     },
-    [],
+    [removeFriend],
   );
 
   return (

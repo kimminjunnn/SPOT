@@ -80,7 +80,11 @@ export default function ProfileScreen() {
           <Pressable onPress={() => router.push("/profile/notifications")}>
             <Image
               style={{ width: 24, height: 24 }}
-              source={require("@/assets/images/bell-icon.png")}
+              source={
+                unreadNotificationCount > 0
+                  ? require("@/assets/images/bell-icon.png")
+                  : require("@/assets/images/bell-plain.png")
+              }
             />
             {unreadNotificationCount > 0 && (
               <View style={styles.notificationBadge}>

@@ -3,13 +3,14 @@ import Constants from "expo-constants";
 import { requireOptionalNativeModule } from "expo-modules-core";
 import { router, type Href } from "expo-router";
 import { useEffect, useRef } from "react";
-import { Platform } from "react-native";
+import { AppState, Platform } from "react-native";
 
 import { savePushToken } from "@/src/lib/api/pushTokens";
 import {
   openNotificationTarget,
   parseNotificationTarget,
 } from "@/src/lib/navigation/openNotificationTarget";
+import { useFriendsStore } from "@/src/stores/useFriendsStore";
 
 type ExpoNotificationsModule = typeof import("expo-notifications");
 
@@ -113,6 +114,16 @@ function getRouteFromNotificationData(data: unknown) {
   return parseNotificationTarget(data);
 }
 
+function refreshFriendsForRelationshipNotification(data: unknown) {
+  const target = getRouteFromNotificationData(data);
+
+  if (target?.type === "follow_accept") {
+    void useFriendsStore.getState().loadFriends({ force: true });
+  }
+
+  return target;
+}
+
 async function registerPushToken() {
   if (Platform.OS !== "ios") return;
 
@@ -205,6 +216,23 @@ export function useRegisterPushToken({ enabled }: UseRegisterPushTokenOptions) {
   useEffect(() => {
     if (!enabled) return;
 
+    let previousState = AppState.currentState;
+    const subscription = AppState.addEventListener("change", (nextState) => {
+      const returnedToForeground =
+        previousState !== "active" && nextState === "active";
+      previousState = nextState;
+
+      if (returnedToForeground) {
+        void useFriendsStore.getState().loadFriends({ force: true });
+      }
+    });
+
+    return () => subscription.remove();
+  }, [enabled]);
+
+  useEffect(() => {
+    if (!enabled) return;
+
     let isMounted = true;
 
     void getPendingNotificationRoute().then((route) => {
@@ -223,20 +251,28 @@ export function useRegisterPushToken({ enabled }: UseRegisterPushTokenOptions) {
     if (!enabled) return;
 
     let isMounted = true;
-    let subscription: { remove: () => void } | null = null;
+    const subscriptions: { remove: () => void }[] = [];
 
     void getNotificationsModule().then((Notifications) => {
       if (!Notifications || !isMounted) return;
 
       setForegroundNotificationHandler(Notifications);
 
-      subscription = Notifications.addNotificationResponseReceivedListener(
-        (response) => {
+      subscriptions.push(
+        Notifications.addNotificationReceivedListener((notification) => {
+          refreshFriendsForRelationshipNotification(
+            notification.request.content.data,
+          );
+        }),
+      );
+
+      subscriptions.push(
+        Notifications.addNotificationResponseReceivedListener((response) => {
           const requestId = response.notification.request.identifier;
           if (handledNotificationIdsRef.current.has(requestId)) return;
           handledNotificationIdsRef.current.add(requestId);
 
-          const target = getRouteFromNotificationData(
+          const target = refreshFriendsForRelationshipNotification(
             response.notification.request.content.data,
           );
 
@@ -245,7 +281,7 @@ export function useRegisterPushToken({ enabled }: UseRegisterPushTokenOptions) {
               console.warn("[PushNotification] Failed to open target:", error);
             });
           }
-        },
+        }),
       );
 
       void Notifications.getLastNotificationResponseAsync().then((response) => {
@@ -256,7 +292,7 @@ export function useRegisterPushToken({ enabled }: UseRegisterPushTokenOptions) {
         if (handledNotificationIdsRef.current.has(requestId)) return;
         handledNotificationIdsRef.current.add(requestId);
 
-        const target = getRouteFromNotificationData(
+        const target = refreshFriendsForRelationshipNotification(
           response.notification.request.content.data,
         );
 
@@ -271,7 +307,7 @@ export function useRegisterPushToken({ enabled }: UseRegisterPushTokenOptions) {
 
     return () => {
       isMounted = false;
-      subscription?.remove();
+      subscriptions.forEach((subscription) => subscription.remove());
     };
   }, [enabled]);
 }

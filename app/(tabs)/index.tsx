@@ -102,7 +102,9 @@ export default function Home() {
   const coords = useLocationStore((state) => state.coords);
 
   const friends = useFriendsStore((state) => state.friends);
+  const friendsLoading = useFriendsStore((state) => state.loading);
   const loadFriends = useFriendsStore((state) => state.loadFriends);
+  const previousFriendIdsRef = useRef(new Set<number>());
 
   const fetchMyProfile = useMyProfileStore((state) => state.fetchMyProfile);
 
@@ -189,6 +191,28 @@ export default function Home() {
   }, [activeTab, showHeader]);
 
   useEffect(() => {
+    const currentFriendIds = new Set(friends.map((friend) => friend.id));
+    const selectedFriendId =
+      selectedUser?.scope === "friend" ? selectedUser.userId : undefined;
+    const selectedFriendWasRemoved =
+      typeof selectedFriendId === "number" &&
+      previousFriendIdsRef.current.has(selectedFriendId) &&
+      !currentFriendIds.has(selectedFriendId);
+
+    previousFriendIdsRef.current = currentFriendIds;
+
+    if (!selectedFriendWasRemoved) return;
+
+    setSelectedUser(null);
+    setScope({ type: "friends" });
+    setSelectedPlaceId(null);
+    setMarkers([]);
+    setPlaceList([]);
+    unfocusPlace();
+    showHeader();
+  }, [friends, selectedUser, showHeader, unfocusPlace]);
+
+  useEffect(() => {
     if (activeTab !== "map") {
       setSelectedPlaceId(null);
       unfocusPlace();
@@ -231,13 +255,21 @@ export default function Home() {
       if (!token) return;
 
       fetchMyProfile();
-      loadFriends();
+      loadFriends({ force: true });
     }, [hasHydrated, token, loadFriends, fetchMyProfile]),
   );
 
   useEffect(() => {
     if (activeTab !== "map") return;
     if (lat == null || lng == null) return;
+    if (scope.type === "friends" && friendsLoading) return;
+
+    // 친구가 없을 때 전체 친구용 API를 호출하면 서버의 테스트 데이터가
+    // 노출될 수 있으므로 빈 화면을 유지한다.
+    if (scope.type === "friends" && friends.length === 0) {
+      setMarkers([]);
+      return;
+    }
 
     let cancelled = false;
 
@@ -344,7 +376,15 @@ export default function Home() {
     return () => {
       cancelled = true;
     };
-  }, [activeTab, scope, lat, lng, homeRefreshKey]);
+  }, [
+    activeTab,
+    scope,
+    lat,
+    lng,
+    homeRefreshKey,
+    friends.length,
+    friendsLoading,
+  ]);
 
   const handleTogglePlaceBookmark = useCallback(
     async (place: HomePlaceItem) => {
@@ -397,6 +437,12 @@ export default function Home() {
   useEffect(() => {
     if (activeTab !== "place") return;
     if (lat == null || lng == null) return;
+    if (scope.type === "friends" && friendsLoading) return;
+
+    if (scope.type === "friends" && friends.length === 0) {
+      setPlaceList([]);
+      return;
+    }
 
     let cancelled = false;
 
@@ -426,7 +472,7 @@ export default function Home() {
     return () => {
       cancelled = true;
     };
-  }, [activeTab, scope, lat, lng]);
+  }, [activeTab, scope, lat, lng, friends.length, friendsLoading]);
 
   const handleSelectStory = (user: StorySelectedUser | null) => {
     if (!user) {

@@ -6,6 +6,8 @@ type FriendsState = {
   loading: boolean;
   error: string | null;
   lastFetchedAt: number | null;
+  mutationRevision: number;
+  refreshQueued: boolean;
 
   loadFriends: (opts?: { force?: boolean }) => Promise<void>;
   upsertFriend: (friend: Friend) => void;
@@ -20,22 +22,36 @@ export const useFriendsStore = create<FriendsState>((set, get) => ({
   loading: false,
   error: null,
   lastFetchedAt: null,
+  mutationRevision: 0,
+  refreshQueued: false,
 
   loadFriends: async (opts) => {
     const force = opts?.force ?? false;
     const { loading, lastFetchedAt } = get();
-    if (loading) return;
+    if (loading) {
+      if (force) set({ refreshQueued: true });
+      return;
+    }
 
     if (!force && lastFetchedAt && Date.now() - lastFetchedAt < TTL_MS) return;
 
-    set({ loading: true, error: null });
+    const requestRevision = get().mutationRevision;
+    set({ loading: true, error: null, refreshQueued: false });
+
     try {
       const list = await fetchFriendsList();
-      set({ friends: list, lastFetchedAt: Date.now() });
+      if (get().mutationRevision === requestRevision) {
+        set({ friends: list, lastFetchedAt: Date.now() });
+      }
     } catch (e: any) {
       set({ error: e?.message ?? "failed to load friends" });
     } finally {
-      set({ loading: false });
+      const shouldRefreshAgain = get().refreshQueued;
+      set({ loading: false, refreshQueued: false });
+
+      if (shouldRefreshAgain) {
+        await get().loadFriends({ force: true });
+      }
     }
   },
 
@@ -50,6 +66,7 @@ export const useFriendsStore = create<FriendsState>((set, get) => ({
             )
           : [friend, ...state.friends],
         lastFetchedAt: Date.now(),
+        mutationRevision: state.mutationRevision + 1,
       };
     }),
 
@@ -57,8 +74,16 @@ export const useFriendsStore = create<FriendsState>((set, get) => ({
     set((state) => ({
       friends: state.friends.filter((friend) => friend.id !== friendId),
       lastFetchedAt: Date.now(),
+      mutationRevision: state.mutationRevision + 1,
     })),
 
   clearFriends: () =>
-    set({ friends: [], loading: false, error: null, lastFetchedAt: null }),
+    set((state) => ({
+      friends: [],
+      loading: false,
+      error: null,
+      lastFetchedAt: null,
+      mutationRevision: state.mutationRevision + 1,
+      refreshQueued: false,
+    })),
 }));

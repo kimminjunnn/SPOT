@@ -16,6 +16,7 @@ export type ApiNotificationDetail = {
   one_line: string | null;
   photo: string | null;
   place_name?: string | null;
+  place_photo?: unknown;
   sender_id: number | null;
   spot_id: string | null;
   spot_nickname: string | null;
@@ -66,6 +67,7 @@ export type NotificationDetail = {
   oneLine: string | null;
   photo: string | null;
   placeName: string | null;
+  placePhoto: string | null;
   targetId: number | null;
   targetType: string | null;
   isRead: boolean;
@@ -81,6 +83,22 @@ function parsePositiveInteger(value: unknown): number | null {
         : Number.NaN;
 
   return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : null;
+}
+
+function parsePhotoUrl(value: unknown): string | null {
+  const candidate =
+    typeof value === "string"
+      ? value
+      : Array.isArray(value)
+        ? value.find((item): item is string => typeof item === "string")
+        : value && typeof value === "object"
+          ? ["url", "uri"].map((key) => Reflect.get(value, key)).find(
+              (item): item is string => typeof item === "string",
+            )
+          : undefined;
+
+  const trimmed = candidate?.trim();
+  return trimmed ? trimmed : null;
 }
 
 export function mapNotificationDetail(
@@ -103,6 +121,7 @@ export function mapNotificationDetail(
     oneLine: item.one_line,
     photo: item.photo,
     placeName: item.place_name ?? null,
+    placePhoto: parsePhotoUrl(item.place_photo),
     targetId: parsePositiveInteger(item.target_id),
     targetType:
       typeof item.target_type === "string" && item.target_type.trim().length > 0

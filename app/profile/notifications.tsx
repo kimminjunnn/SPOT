@@ -11,27 +11,64 @@ import { useFocusEffect } from "@react-navigation/native";
 
 import ProfileLayout from "@/src/components/profile/Layout";
 import ProfileHeader from "@/src/components/profile/Header";
-import NotificationRow from "@/src/components/notification/NotificationRow";
+import NotificationRow, {
+  type NotificationFollowAction,
+} from "@/src/components/notification/NotificationRow";
 import {
   fetchNotificationDetails,
   readNotifications,
   type NotificationDetail,
 } from "@/src/lib/api/notification";
 import { openNotificationTarget } from "@/src/lib/navigation/openNotificationTarget";
-import { acceptFollowRequest } from "@/src/lib/api/friends";
+import {
+  acceptFollowRequest,
+  deleteFriend,
+  sendFollowRequest,
+  type Friend,
+} from "@/src/lib/api/friends";
 import { useFriendsStore } from "@/src/stores/useFriendsStore";
 import { Colors } from "@/src/styles/Colors";
 import { TextStyles } from "@/src/styles/TextStyles";
+
+function toNotificationFriend(notification: NotificationDetail): Friend | null {
+  if (notification.senderId === null) return null;
+
+  return {
+    id: notification.senderId,
+    nickname:
+      notification.spotNickname?.trim() ||
+      notification.spotId?.trim() ||
+      "사용자",
+    userId: notification.spotId?.trim() ?? "",
+    avatarUrl: notification.photo,
+    status: "friends",
+  };
+}
 
 export default function NotificationsScreen() {
   const [notifications, setNotifications] = useState<NotificationDetail[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [acceptingById, setAcceptingById] = useState<Record<number, boolean>>(
-    {},
+  const [followActionBySenderId, setFollowActionBySenderId] = useState<
+    Record<number, NotificationFollowAction>
+  >({});
+  const [actioningBySenderId, setActioningBySenderId] = useState<
+    Record<number, boolean>
+  >({});
+  const actioningSenderIdsRef = useRef(new Set<number>());
+  const loadFriends = useFriendsStore((state) => state.loadFriends);
+  const upsertFriend = useFriendsStore((state) => state.upsertFriend);
+  const removeFriend = useFriendsStore((state) => state.removeFriend);
+
+  const setFollowAction = useCallback(
+    (senderId: number, action: NotificationFollowAction) => {
+      setFollowActionBySenderId((prev) => ({
+        ...prev,
+        [senderId]: action,
+      }));
+    },
+    [],
   );
-  const acceptingIdsRef = useRef(new Set<number>());
-  const loadFriends = useFriendsStore((s) => s.loadFriends);
 
   useFocusEffect(
     useCallback(() => {
@@ -46,6 +83,10 @@ export default function NotificationsScreen() {
           if (!alive) return;
 
           setNotifications(list);
+
+          if (list.some((notification) => notification.type === "follow_accept")) {
+            void loadFriends({ force: true });
+          }
 
           if (list.some((notification) => !notification.isRead)) {
             const didRead = await readNotifications();
@@ -79,59 +120,81 @@ export default function NotificationsScreen() {
       return () => {
         alive = false;
       };
-    }, []),
+    }, [loadFriends]),
   );
 
-  const handleAcceptFollowRequest = useCallback(
-    async (notification: NotificationDetail) => {
-      if (acceptingIdsRef.current.has(notification.id)) {
+  const handleFollowAction = useCallback(
+    async (
+      notification: NotificationDetail,
+      action: NotificationFollowAction,
+    ) => {
+      const senderId = notification.senderId;
+      if (senderId === null || actioningSenderIdsRef.current.has(senderId)) {
         return;
       }
 
-      acceptingIdsRef.current.add(notification.id);
-      setAcceptingById((prev) => ({
-        ...prev,
-        [notification.id]: true,
-      }));
+      actioningSenderIdsRef.current.add(senderId);
+      setActioningBySenderId((prev) => ({ ...prev, [senderId]: true }));
+      const previousFriend = useFriendsStore
+        .getState()
+        .friends.find((friend) => friend.id === senderId);
+      const notificationFriend = toNotificationFriend(notification);
+
+      if (action === "following") {
+        removeFriend(senderId);
+      } else if (notificationFriend) {
+        upsertFriend(notificationFriend);
+      }
 
       try {
-        if (notification.senderId === null) {
-          throw new Error("팔로우 요청 알림에 sender_id가 없습니다.");
+        if (action === "accept") {
+          await acceptFollowRequest(senderId);
+          setFollowAction(senderId, "followBack");
+        } else if (action === "followBack") {
+          await sendFollowRequest(senderId);
+          setFollowAction(senderId, "following");
+        } else {
+          await deleteFriend(senderId);
+          setFollowAction(senderId, "followBack");
         }
 
-        await acceptFollowRequest(notification.senderId);
-        setNotifications((prev) =>
-          prev.filter((item) => item.id !== notification.id),
-        );
         void loadFriends({ force: true });
       } catch (err: any) {
+        const status = err?.response?.status;
         console.warn(
-          "팔로우 수락 에러:",
-          err?.response?.status,
+          "알림 팔로우 상태 변경 에러:",
+          status,
           err?.response?.data ?? err?.message,
         );
-        if (
-          err?.response?.status === 400 ||
-          err?.response?.status === 404 ||
-          err?.response?.status === 409
-        ) {
-          setNotifications((prev) =>
-            prev.filter((item) => item.id !== notification.id),
-          );
+
+        if (action === "accept" && [400, 404, 409].includes(status)) {
+          setFollowAction(senderId, "followBack");
+          void loadFriends({ force: true });
           Alert.alert("알림", "이미 처리된 팔로우 요청이에요.");
+        } else if (action === "followBack" && status === 409) {
+          setFollowAction(senderId, "following");
+          void loadFriends({ force: true });
+        } else if (action === "following" && status === 404) {
+          setFollowAction(senderId, "followBack");
+          void loadFriends({ force: true });
         } else {
-          Alert.alert("오류", "팔로우 수락 중 문제가 발생했어요.");
+          if (previousFriend) {
+            upsertFriend(previousFriend);
+          } else {
+            removeFriend(senderId);
+          }
+          Alert.alert("오류", "팔로우 상태 변경 중 문제가 발생했어요.");
         }
       } finally {
-        acceptingIdsRef.current.delete(notification.id);
-        setAcceptingById((prev) => {
+        actioningSenderIdsRef.current.delete(senderId);
+        setActioningBySenderId((prev) => {
           const next = { ...prev };
-          delete next[notification.id];
+          delete next[senderId];
           return next;
         });
       }
     },
-    [loadFriends],
+    [loadFriends, removeFriend, setFollowAction, upsertFriend],
   );
 
   const handlePressNotification = useCallback(
@@ -176,25 +239,35 @@ export default function NotificationsScreen() {
           data={notifications}
           keyExtractor={(notification) => String(notification.id)}
           showsVerticalScrollIndicator={false}
-          renderItem={({ item: notification }) => (
-            <NotificationRow
-              notification={notification}
-              accepting={acceptingById[notification.id] ?? false}
-              onPress={
-                notification.type === "instagram_extract" ||
-                notification.targetType === "place" ||
-                notification.targetType === "map"
-                  ? () => handlePressNotification(notification)
-                  : undefined
-              }
-              onAccept={
-                notification.type === "follow_request" &&
-                notification.senderId !== null
-                  ? () => handleAcceptFollowRequest(notification)
-                  : undefined
-              }
-            />
-          )}
+          renderItem={({ item: notification }) => {
+            const senderId = notification.senderId;
+            const followAction =
+              notification.type === "follow_request" && senderId !== null
+                ? (followActionBySenderId[senderId] ?? "accept")
+                : undefined;
+
+            return (
+              <NotificationRow
+                notification={notification}
+                followAction={followAction}
+                followActionLoading={
+                  senderId !== null && actioningBySenderId[senderId] === true
+                }
+                onPress={
+                  notification.type === "instagram_extract" ||
+                  notification.targetType === "place" ||
+                  notification.targetType === "map"
+                    ? () => handlePressNotification(notification)
+                    : undefined
+                }
+                onPressFollowAction={
+                  followAction
+                    ? () => handleFollowAction(notification, followAction)
+                    : undefined
+                }
+              />
+            );
+          }}
         />
       )}
     </ProfileLayout>
