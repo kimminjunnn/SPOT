@@ -16,7 +16,6 @@ import RecentFriendSearch from "@/src/components/friends/RecentFriendSearch";
 import FriendSearchResult from "@/src/components/friends/FriendSearchResult";
 import {
   searchFriends,
-  reconcileFriendSearchStatuses,
   sendFollowRequest,
   acceptFollowRequest,
   getFriendStatus,
@@ -25,7 +24,6 @@ import {
 } from "@/src/lib/api/friends";
 import { useFriendsStore } from "@/src/stores/useFriendsStore";
 import { useRecentFriendSearchStore } from "@/src/stores/useRecentFriendSearchStore";
-import { useMyProfileStore } from "@/src/stores/useMyProfileStore";
 import { openFriendHome } from "@/src/lib/navigation/openFriendHome";
 import { toFriendSearchStatus } from "@/src/lib/friends/friendStatus";
 
@@ -36,7 +34,6 @@ export default function SearchFriendScreen() {
   const upsertFriend = useFriendsStore((s) => s.upsertFriend);
   const removeFriend = useFriendsStore((s) => s.removeFriend);
   const loadFriends = useFriendsStore((s) => s.loadFriends);
-  const viewerId = useMyProfileStore((s) => s.profile?.id ?? null);
 
   const showRecent = !searchInputText || results === null;
   const showResults = Array.isArray(results) && results.length > 0;
@@ -83,8 +80,7 @@ export default function SearchFriendScreen() {
       const seq = ++reqSeqRef.current;
 
       try {
-        const searchData = await searchFriends(keyword, controller.signal);
-        const data = await reconcileFriendSearchStatuses(searchData);
+        const data = await searchFriends(keyword, controller.signal);
 
         if (seq !== reqSeqRef.current) return;
         setResults(data);
@@ -127,9 +123,8 @@ export default function SearchFriendScreen() {
       displayText: keyword,
       profilePhoto: null,
       targetId: null,
-      viewerId,
     });
-  }, [addRecent, searchInputText, viewerId]);
+  }, [addRecent, searchInputText]);
 
   const onSelectFriend = useCallback(
     (friend: FriendSearchItem) => {
@@ -138,7 +133,6 @@ export default function SearchFriendScreen() {
         profilePhoto: friend.profileImageUrl,
         searchType: friend.nickname ? "spot_nickname" : "spot_id",
         targetId: friend.id,
-        viewerId,
       });
 
       openFriendHome({
@@ -149,7 +143,7 @@ export default function SearchFriendScreen() {
         avatarUrl: friend.profileImageUrl,
       });
     },
-    [addRecent, viewerId],
+    [addRecent],
   );
 
   const updateResultStatus = useCallback(

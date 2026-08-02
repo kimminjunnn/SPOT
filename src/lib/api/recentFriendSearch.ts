@@ -1,4 +1,5 @@
 import { api8000 } from "@/src/lib/api/client";
+import type { RelationshipInfo } from "@/src/types/friends";
 
 export type RecentFriendSearchType = "spot_id" | "spot_nickname";
 
@@ -10,14 +11,20 @@ export type RecentFriendSearchRequest = {
 };
 
 export type ApiRecentFriendSearchItem = {
-  id?: string | number | null;
-  recent_id?: string | number | null;
-  recent_search_id?: string | number | null;
-  display_text?: string | null;
+  recent_search_id: number;
+  display_text: string;
   profile_photo?: string | null;
-  search_type?: RecentFriendSearchType | string | null;
-  target_id?: number | null;
-  viewer_id?: number | null;
+  search_type: RecentFriendSearchType | string;
+  target_id: number;
+  spot_id?: string | null;
+  spot_nickname?: string | null;
+  one_line?: string | null;
+  relationship: RelationshipInfo;
+  created_at: string;
+};
+
+export type SaveRecentFriendSearchResponse = {
+  message: string;
 };
 
 export async function fetchRecentFriendSearches(options?: {
@@ -35,8 +42,8 @@ export async function fetchRecentFriendSearches(options?: {
 
 export async function createRecentFriendSearch(
   payload: RecentFriendSearchRequest,
-): Promise<ApiRecentFriendSearchItem> {
-  const res = await api8000.post<ApiRecentFriendSearchItem>(
+): Promise<SaveRecentFriendSearchResponse> {
+  const res = await api8000.post<SaveRecentFriendSearchResponse>(
     "/friends/recent-search",
     payload,
   );

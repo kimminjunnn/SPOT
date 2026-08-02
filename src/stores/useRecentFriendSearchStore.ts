@@ -5,6 +5,7 @@ import {
   type ApiRecentFriendSearchItem,
   type RecentFriendSearchType,
 } from "@/src/lib/api/recentFriendSearch";
+import type { RelationshipInfo } from "@/src/types/friends";
 
 export type RecentFriendItem = {
   id: string;
@@ -12,6 +13,7 @@ export type RecentFriendItem = {
   profileImageUrl?: string | null;
   searchType?: RecentFriendSearchType;
   targetId?: number | null;
+  relationship?: RelationshipInfo;
 };
 
 type AddRecentFriendInput = {
@@ -19,7 +21,6 @@ type AddRecentFriendInput = {
   profilePhoto?: string | null;
   searchType?: RecentFriendSearchType;
   targetId?: number | null;
-  viewerId?: number | null;
 };
 
 type State = {
@@ -59,7 +60,7 @@ const normalize = (
   const keyword = String(item?.display_text ?? "").trim();
   if (!keyword) return null;
 
-  const idRaw = item?.id ?? item?.recent_id ?? item?.recent_search_id;
+  const idRaw = item.recent_search_id;
   const searchType =
     item?.search_type === "spot_id" || item?.search_type === "spot_nickname"
       ? item.search_type
@@ -70,7 +71,8 @@ const normalize = (
     keyword,
     profileImageUrl: item?.profile_photo ?? null,
     searchType,
-    targetId: item?.target_id ?? null,
+    targetId: item.target_id,
+    relationship: item.relationship,
   };
 };
 
@@ -133,19 +135,12 @@ export const useRecentFriendSearchStore = create<State & Actions>(
       }
 
       try {
-        const data = await createRecentFriendSearch({
+        await createRecentFriendSearch({
           display_text: displayText,
           profile_photo: input.profilePhoto ?? null,
           search_type: searchType,
           target_id: input.targetId,
         });
-        const created = normalize(data) ?? optimistic;
-
-        set((state) => ({
-          items: dedupeByKeyword(
-            state.items.map((item) => (item.id === tempId ? created : item)),
-          ).slice(0, 10),
-        }));
       } catch {
         // 최근 검색 저장 실패는 검색 자체를 막지 않는다.
       }
