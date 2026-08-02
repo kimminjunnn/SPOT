@@ -102,14 +102,19 @@ export default function PlaceCard({
   return (
     <Pressable style={[styles.card, style]} onPress={onPress}>
       <View style={styles.header}>
-        <Text style={[TextStyles.SemiBold20, { marginRight: 3 }]}>{name}</Text>
+        <Text
+          style={[TextStyles.SemiBold20, styles.nameText]}
+          numberOfLines={1}
+          ellipsizeMode="tail"
+        >
+          {name}
+        </Text>
         <Text
           style={[
             TextStyles.Regular12,
-            { color: Colors.gray_300 },
-            { marginTop: 3.5 },
-            { marginRight: 6 },
+            styles.categoryText,
           ]}
+          numberOfLines={1}
         >
           {category}
         </Text>
@@ -252,10 +257,20 @@ const styles = StyleSheet.create({
     borderBottomColor: "#E6E6E666",
   },
   header: {
-    flex: 1,
     flexDirection: "row",
     alignItems: "center",
     marginBottom: 6,
+  },
+  nameText: {
+    flexShrink: 1,
+    minWidth: 0,
+    marginRight: 3,
+  },
+  categoryText: {
+    color: Colors.gray_300,
+    flexShrink: 0,
+    marginTop: 3.5,
+    marginRight: 6,
   },
 
   ratingContainer: {
@@ -269,14 +284,13 @@ const styles = StyleSheet.create({
     height: 14,
   },
   bookmarkPressable: {
-    position: "absolute",
-    right: 0,
-    top: 3,
+    flexShrink: 0,
+    width: 24,
+    height: 24,
+    marginLeft: "auto",
   },
 
   bookmarkIcon: {
-    position: "absolute",
-    right: 0,
     width: 24,
     height: 24,
   },
