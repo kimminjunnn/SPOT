@@ -5,7 +5,10 @@ import { router, type Href } from "expo-router";
 import { useEffect, useRef } from "react";
 import { AppState, Platform } from "react-native";
 
-import { savePushToken } from "@/src/lib/api/pushTokens";
+import {
+  deactivatePushToken,
+  savePushToken,
+} from "@/src/lib/api/pushTokens";
 import {
   openNotificationTarget,
   parseNotificationTarget,
@@ -16,6 +19,7 @@ type ExpoNotificationsModule = typeof import("expo-notifications");
 
 const LAST_REGISTERED_PUSH_TOKEN_KEY = "lastRegisteredPushToken";
 const PENDING_NOTIFICATION_ROUTE_KEY = "pendingNotificationRoute";
+const PUSH_NOTIFICATION_ENABLED_KEY = "pushNotificationEnabled";
 
 type LastRegisteredPushToken = {
   appVersion: string;
@@ -25,6 +29,12 @@ type LastRegisteredPushToken = {
 type UseRegisterPushTokenOptions = {
   enabled: boolean;
 };
+
+export type EnablePushNotificationsResult =
+  | "enabled"
+  | "denied"
+  | "unavailable"
+  | "failed";
 
 async function getNotificationsModule() {
   const pushTokenManager = requireOptionalNativeModule("ExpoPushTokenManager");
@@ -124,16 +134,21 @@ function refreshFriendsForRelationshipNotification(data: unknown) {
   return target;
 }
 
-async function registerPushToken() {
-  if (Platform.OS !== "ios") return;
+async function isPushNotificationPreferenceEnabled() {
+  const value = await AsyncStorage.getItem(PUSH_NOTIFICATION_ENABLED_KEY);
+  return value !== "false";
+}
+
+async function registerPushToken(): Promise<EnablePushNotificationsResult> {
+  if (Platform.OS !== "ios") return "unavailable";
 
   const Notifications = await getNotificationsModule();
-  if (!Notifications) return;
+  if (!Notifications) return "unavailable";
 
   const projectId = getProjectId();
   if (!projectId) {
     console.warn("[PushToken] Expo projectId is missing.");
-    return;
+    return "unavailable";
   }
 
   const currentPermission = await Notifications.getPermissionsAsync();
@@ -144,7 +159,7 @@ async function registerPushToken() {
     finalStatus = requestedPermission.status;
   }
 
-  if (finalStatus !== "granted") return;
+  if (finalStatus !== "granted") return "denied";
 
   const appVersion = getAppVersion();
   const expoPushToken = (
@@ -157,7 +172,7 @@ async function registerPushToken() {
     lastRegistered.expoPushToken === expoPushToken
   ) {
     console.log("[PushToken] expo_push_token:", expoPushToken);
-    return;
+    return "enabled";
   }
 
   console.log("[PushToken] expo_push_token:", expoPushToken);
@@ -171,7 +186,31 @@ async function registerPushToken() {
 
   if (saved) {
     await setLastRegisteredPushToken({ appVersion, expoPushToken });
+    return "enabled";
   }
+
+  return "failed";
+}
+
+export async function getPushNotificationsEnabled() {
+  if (Platform.OS !== "ios") return false;
+  if (!(await isPushNotificationPreferenceEnabled())) return false;
+
+  const Notifications = await getNotificationsModule();
+  if (!Notifications) return false;
+
+  const permission = await Notifications.getPermissionsAsync();
+  return permission.status === "granted";
+}
+
+export async function enablePushNotifications() {
+  await AsyncStorage.setItem(PUSH_NOTIFICATION_ENABLED_KEY, "true");
+  return registerPushToken();
+}
+
+export async function disablePushNotifications() {
+  await AsyncStorage.setItem(PUSH_NOTIFICATION_ENABLED_KEY, "false");
+  await deactivateLastRegisteredPushToken();
 }
 
 export async function deactivateLastRegisteredPushToken() {
@@ -181,19 +220,25 @@ export async function deactivateLastRegisteredPushToken() {
     const lastRegistered = await getLastRegisteredPushToken();
     if (!lastRegistered) return;
 
-    const saved = await savePushToken({
-      app_version: getAppVersion(),
-      device_type: "ios",
-      expo_push_token: lastRegistered.expoPushToken,
-      is_active: false,
-    });
+    const deactivated = await deactivatePushToken(
+      lastRegistered.expoPushToken,
+    );
 
-    if (saved) {
+    if (deactivated) {
       await AsyncStorage.removeItem(LAST_REGISTERED_PUSH_TOKEN_KEY);
     }
   } catch (error) {
     console.warn("[PushToken] Failed to deactivate push token:", error);
   }
+}
+
+async function syncPushNotificationPreference() {
+  if (await isPushNotificationPreferenceEnabled()) {
+    await registerPushToken();
+    return;
+  }
+
+  await deactivateLastRegisteredPushToken();
 }
 
 export function useRegisterPushToken({ enabled }: UseRegisterPushTokenOptions) {
@@ -204,7 +249,7 @@ export function useRegisterPushToken({ enabled }: UseRegisterPushTokenOptions) {
     if (!enabled || isRegisteringRef.current) return;
 
     isRegisteringRef.current = true;
-    void registerPushToken()
+    void syncPushNotificationPreference()
       .catch((error) => {
         console.warn("[PushToken] Failed to register push token:", error);
       })
@@ -224,6 +269,9 @@ export function useRegisterPushToken({ enabled }: UseRegisterPushTokenOptions) {
 
       if (returnedToForeground) {
         void useFriendsStore.getState().loadFriends({ force: true });
+        void syncPushNotificationPreference().catch((error) => {
+          console.warn("[PushToken] Failed to sync push preference:", error);
+        });
       }
     });
 
