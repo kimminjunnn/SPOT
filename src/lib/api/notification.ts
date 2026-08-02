@@ -15,13 +15,17 @@ export type ApiNotificationDetail = {
   notification_id: number;
   one_line: string | null;
   photo: string | null;
+  place_id?: number | string | null;
+  placeId?: number | string | null;
   place_name?: string | null;
   place_photo?: unknown;
   sender_id: number | null;
   spot_id: string | null;
   spot_nickname: string | null;
   target_id?: number | string | null;
+  targetId?: number | string | null;
   target_type?: string | null;
+  targetType?: string | null;
   type: NotificationType;
 };
 
@@ -104,6 +108,20 @@ function parsePhotoUrl(value: unknown): string | null {
 export function mapNotificationDetail(
   item: ApiNotificationDetail,
 ): NotificationDetail {
+  const placeId =
+    parsePositiveInteger(item.place_id) ?? parsePositiveInteger(item.placeId);
+  const targetId =
+    parsePositiveInteger(item.target_id) ??
+    parsePositiveInteger(item.targetId) ??
+    placeId;
+  const rawTargetType = item.target_type ?? item.targetType;
+  const targetType =
+    typeof rawTargetType === "string" && rawTargetType.trim().length > 0
+      ? rawTargetType.trim().toLowerCase()
+      : placeId !== null
+        ? "place"
+        : null;
+
   return {
     bodySegments: Array.isArray(item.body_segments)
       ? item.body_segments.filter(
@@ -122,11 +140,8 @@ export function mapNotificationDetail(
     photo: item.photo,
     placeName: item.place_name ?? null,
     placePhoto: parsePhotoUrl(item.place_photo),
-    targetId: parsePositiveInteger(item.target_id),
-    targetType:
-      typeof item.target_type === "string" && item.target_type.trim().length > 0
-        ? item.target_type.trim()
-        : null,
+    targetId,
+    targetType,
     isRead: item.is_read,
     createdAt: item.created_at,
   };

@@ -10,6 +10,7 @@ type NotificationRowProps = {
   followAction?: NotificationFollowAction;
   followActionLoading?: boolean;
   onPressFollowAction?: () => void;
+  onPressPlace?: () => void;
   onPress?: () => void;
 };
 
@@ -44,11 +45,50 @@ const SPOT_ICON = require("@/assets/images/icon.png");
 const ANONYMOUS_NOTIFICATION_MESSAGE =
   "누군가님에게서 알림이 도착했습니다.";
 
+function stripTrailingPlaceName(
+  message: string,
+  placeName: string | null,
+) {
+  const trimmedPlaceName = placeName?.trim();
+  if (!trimmedPlaceName) return message;
+
+  const trimmedMessage = message.trimEnd();
+  const suffix = `(${trimmedPlaceName})`;
+  return trimmedMessage.endsWith(suffix)
+    ? trimmedMessage.slice(0, -suffix.length).trimEnd()
+    : message;
+}
+
+function stripTrailingPlaceNameFromSegments(
+  segments: NotificationDetail["bodySegments"],
+  placeName: string | null,
+) {
+  const message = segments.map((segment) => segment.text).join("");
+  const strippedMessage = stripTrailingPlaceName(message, placeName);
+  if (strippedMessage === message) return segments;
+
+  let remainingLength = strippedMessage.length;
+  return segments.flatMap((segment) => {
+    if (remainingLength <= 0) return [];
+
+    const text = segment.text.slice(0, remainingLength);
+    remainingLength -= text.length;
+    return text ? [{ ...segment, text }] : [];
+  });
+}
+
 function getNotificationBodySegments(notification: NotificationDetail) {
-  const segments = notification.bodySegments;
+  const segments = stripTrailingPlaceNameFromSegments(
+    notification.bodySegments,
+    notification.placeName,
+  );
   const message = segments.map((segment) => segment.text).join("").trim();
   const displayedMessage =
-    message || formatNotificationMessage(notification.oneLine);
+    message ||
+    stripTrailingPlaceName(
+      formatNotificationMessage(notification.oneLine),
+      notification.placeName,
+    );
   const isAnonymousFallback =
     displayedMessage === ANONYMOUS_NOTIFICATION_MESSAGE;
 
@@ -102,29 +142,32 @@ export default function NotificationRow({
   followAction,
   followActionLoading = false,
   onPressFollowAction,
+  onPressPlace,
   onPress,
 }: NotificationRowProps) {
-  const isFollowNotification =
-    notification.type === "follow_request" ||
-    notification.type === "follow_accept";
+  const isInstagramExtract = notification.type === "instagram_extract";
+  const hasSender = notification.senderId !== null;
   const actionMeta = followAction
     ? FOLLOW_ACTION_META[followAction]
     : undefined;
   const rawPhoto =
-    notification.type === "instagram_extract"
-      ? notification.placePhoto
-      : notification.photo;
+    isInstagramExtract ? notification.placePhoto : notification.photo;
   const photoUri = typeof rawPhoto === "string" ? rawPhoto.trim() : "";
   const hasPhoto = !!photoUri;
   const imageSource = hasPhoto
     ? { uri: photoUri }
-    : isFollowNotification
+    : hasSender
       ? DEFAULT_PROFILE_IMAGE
       : SPOT_ICON;
-  const usesSpotIcon = !hasPhoto && !isFollowNotification;
+  const usesSpotIcon = !hasPhoto && !hasSender;
 
-  const fallbackMessage = formatNotificationMessage(notification.oneLine);
+  const fallbackMessage = stripTrailingPlaceName(
+    formatNotificationMessage(notification.oneLine),
+    notification.placeName,
+  );
   const bodySegments = getNotificationBodySegments(notification);
+  const hasExtractTitleAndBody =
+    isInstagramExtract && bodySegments.length > 1;
   const accessibilityLabel =
     bodySegments.map((segment) => segment.text).join("") ||
     fallbackMessage;
@@ -151,20 +194,67 @@ export default function NotificationRow({
         </View>
 
         <View style={styles.content}>
-          <Text style={styles.message}>
-            {bodySegments.length > 0
-              ? bodySegments.map((segment, index) => (
+          {hasExtractTitleAndBody ? (
+            <View style={styles.extractMessage}>
+              <Text
+                style={[
+                  styles.message,
+                  bodySegments[0].bold && styles.messageBold,
+                ]}
+                numberOfLines={1}
+              >
+                {bodySegments[0].text.trim()}
+              </Text>
+
+              <Text
+                style={styles.message}
+                numberOfLines={1}
+                ellipsizeMode="tail"
+              >
+                {bodySegments.slice(1).map((segment, index) => (
                   <Text
                     key={`${segment.text}-${index}`}
                     style={segment.bold ? styles.messageBold : undefined}
                   >
-                    {segment.text}
+                    {index === 0 ? segment.text.trimStart() : segment.text}
                   </Text>
-                ))
-              : fallbackMessage}
-          </Text>
+                ))}
+              </Text>
+            </View>
+          ) : (
+            <Text style={styles.message}>
+              {bodySegments.length > 0
+                ? bodySegments.map((segment, index) => (
+                    <Text
+                      key={`${segment.text}-${index}`}
+                      style={segment.bold ? styles.messageBold : undefined}
+                    >
+                      {segment.text}
+                    </Text>
+                  ))
+                : fallbackMessage}
+            </Text>
+          )}
 
-          {notification.placeName ? (
+          {notification.placeName && onPressPlace ? (
+            <Pressable
+              onPress={(event) => {
+                event.stopPropagation();
+                onPressPlace();
+              }}
+              accessibilityRole="link"
+              accessibilityLabel={`${notification.placeName} 장소 상세 보기`}
+              hitSlop={4}
+              style={({ pressed }) => [
+                styles.placeLink,
+                pressed && styles.placeLinkPressed,
+              ]}
+            >
+              <Text style={styles.placeName} numberOfLines={1}>
+                {notification.placeName}
+              </Text>
+            </Pressable>
+          ) : notification.placeName ? (
             <Text style={styles.placeName} numberOfLines={1}>
               {notification.placeName}
             </Text>
@@ -227,7 +317,6 @@ const styles = StyleSheet.create({
     backgroundColor: "#F5F5F5",
   },
   spotImageWrapper: {
-    padding: 5,
     backgroundColor: "#FFF3EE",
     borderColor: Colors.primary_100,
   },
@@ -239,6 +328,9 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 4,
   },
+  extractMessage: {
+    gap: 2,
+  },
   message: {
     ...TextStyles.Regular14,
     color: Colors.gray_800,
@@ -247,8 +339,17 @@ const styles = StyleSheet.create({
     fontFamily: "PretendardBold",
   },
   placeName: {
-    ...TextStyles.Regular12,
-    color: Colors.gray_500,
+    ...TextStyles.Medium14,
+    color: Colors.black,
+  },
+  placeLink: {
+    minHeight: 24,
+    alignSelf: "flex-start",
+    maxWidth: "100%",
+    justifyContent: "center",
+  },
+  placeLinkPressed: {
+    opacity: 0.6,
   },
   time: {
     ...TextStyles.Regular10,

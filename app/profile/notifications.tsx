@@ -212,6 +212,22 @@ export default function NotificationsScreen() {
     [],
   );
 
+  const handlePressPlace = useCallback((notification: NotificationDetail) => {
+    if (notification.targetId === null) {
+      return;
+    }
+
+    void openNotificationTarget({
+      notificationId: notification.id,
+      route: null,
+      targetId: notification.targetId,
+      targetType: "place",
+      type: null,
+    }).catch((error) => {
+      console.warn("[Notifications] Failed to open place:", error);
+    });
+  }, []);
+
   return (
     <ProfileLayout>
       <ProfileHeader title="알림" showBack />
@@ -245,6 +261,13 @@ export default function NotificationsScreen() {
               notification.type === "follow_request" && senderId !== null
                 ? (followActionBySenderId[senderId] ?? "accept")
                 : undefined;
+            const canOpenPlace =
+              notification.targetId !== null &&
+              (notification.targetType === "place" ||
+                !!notification.placeName?.trim());
+            const opensNonPlaceTarget =
+              notification.type === "instagram_extract" ||
+              notification.targetType === "map";
 
             return (
               <NotificationRow
@@ -254,15 +277,20 @@ export default function NotificationsScreen() {
                   senderId !== null && actioningBySenderId[senderId] === true
                 }
                 onPress={
-                  notification.type === "instagram_extract" ||
-                  notification.targetType === "place" ||
-                  notification.targetType === "map"
+                  opensNonPlaceTarget
                     ? () => handlePressNotification(notification)
-                    : undefined
+                    : canOpenPlace
+                      ? () => handlePressPlace(notification)
+                      : undefined
                 }
                 onPressFollowAction={
                   followAction
                     ? () => handleFollowAction(notification, followAction)
+                    : undefined
+                }
+                onPressPlace={
+                  notification.placeName?.trim() && canOpenPlace
+                    ? () => handlePressPlace(notification)
                     : undefined
                 }
               />
