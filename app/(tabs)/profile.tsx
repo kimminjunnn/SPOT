@@ -8,6 +8,7 @@ import ProfileUserCard from "@/src/components/common/UserCard";
 import SpotButton from "@/src/components/common/SpotButton";
 import { useMyProfileStore } from "@/src/stores/useMyProfileStore";
 import { fetchUnreadNotificationCount } from "@/src/lib/api/notification";
+import { getProfileFriendPhotoSlots } from "@/src/lib/profileFriendPhotoSlots";
 import { Colors } from "@/src/styles/Colors";
 import { TextStyles } from "@/src/styles/TextStyles";
 import ProfileAdBanner from "../../src/components/ads/ProfileAdBanner";
@@ -59,12 +60,10 @@ export default function ProfileScreen() {
       ? { uri: profile.photo }
       : defaultProfileImg;
 
-  const friendAvatars =
-    recentFriendPhotos.length > 0
-      ? recentFriendPhotos
-          .slice(0, 3)
-          .map((url) => (url ? { uri: url } : fallbackFriendImg))
-      : [fallbackFriendImg, fallbackFriendImg, fallbackFriendImg];
+  const friendAvatars = getProfileFriendPhotoSlots(
+    recentFriendPhotos,
+    friendCount,
+  ).map((url) => (url ? { uri: url } : fallbackFriendImg));
 
   return (
     <ProfileLayout>
