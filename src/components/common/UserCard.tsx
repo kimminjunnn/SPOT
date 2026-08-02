@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import {
   View,
   Text,
@@ -9,7 +9,9 @@ import {
 } from "react-native";
 import { Colors } from "@/src/styles/Colors";
 import { TextStyles } from "@/src/styles/TextStyles";
-import ActionMenuModal from "@/src/components/common/ActionMenuModal";
+import ActionMenuModal, {
+  type ActionMenuAnchor,
+} from "@/src/components/common/ActionMenuModal";
 
 type Props = {
   variant?: "profile" | "story";
@@ -47,8 +49,23 @@ export default function UserCard({
   const isStory = variant === "story";
 
   const [menuVisible, setMenuVisible] = useState<boolean>(false);
+  const [menuAnchor, setMenuAnchor] = useState<ActionMenuAnchor | null>(null);
+  const moreButtonRef = useRef<View>(null);
 
-  const handleOpenMenu = () => setMenuVisible(true);
+  const handleOpenMenu = () => {
+    const moreButton = moreButtonRef.current;
+
+    if (!moreButton) {
+      setMenuAnchor(null);
+      setMenuVisible(true);
+      return;
+    }
+
+    moreButton.measureInWindow((x, y, width, height) => {
+      setMenuAnchor({ x, y, width, height });
+      setMenuVisible(true);
+    });
+  };
   const handleCloseMenu = () => setMenuVisible(false);
 
   const menus = isMyCard
@@ -109,6 +126,7 @@ export default function UserCard({
 
             <View style={styles.rightProfile}>
               <Pressable
+                ref={moreButtonRef}
                 onPress={handleOpenMenu}
                 hitSlop={10}
                 style={styles.moreBtn}
@@ -163,6 +181,7 @@ export default function UserCard({
         visible={menuVisible}
         onClose={handleCloseMenu}
         menus={menus}
+        anchor={menuAnchor}
       />
     </>
   );

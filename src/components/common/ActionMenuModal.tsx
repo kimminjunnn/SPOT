@@ -1,7 +1,25 @@
 import React from "react";
-import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
+import {
+  Modal,
+  Pressable,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+} from "react-native";
 import { Colors } from "@/src/styles/Colors";
 import { TextStyles } from "@/src/styles/TextStyles";
+
+const MENU_WIDTH = 142;
+const MENU_GAP = 4;
+const SCREEN_EDGE_MARGIN = 20;
+
+export type ActionMenuAnchor = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
 
 export type ActionMenuItem = {
   label: string;
@@ -13,13 +31,37 @@ type Props = {
   visible: boolean;
   onClose: () => void;
   menus: ActionMenuItem[];
+  anchor?: ActionMenuAnchor | null;
 };
 
-export default function ActionMenuModal({ visible, onClose, menus }: Props) {
+export default function ActionMenuModal({
+  visible,
+  onClose,
+  menus,
+  anchor,
+}: Props) {
+  const { width: windowWidth } = useWindowDimensions();
+
   const handlePressMenu = (onPress: () => void) => {
     onClose();
     onPress();
   };
+
+  const positionStyle = anchor
+    ? {
+        top: anchor.y + anchor.height + MENU_GAP,
+        left: Math.min(
+          Math.max(
+            anchor.x + anchor.width - MENU_WIDTH,
+            SCREEN_EDGE_MARGIN,
+          ),
+          Math.max(
+            SCREEN_EDGE_MARGIN,
+            windowWidth - MENU_WIDTH - SCREEN_EDGE_MARGIN,
+          ),
+        ),
+      }
+    : styles.fallbackPosition;
 
   return (
     <Modal
@@ -29,7 +71,7 @@ export default function ActionMenuModal({ visible, onClose, menus }: Props) {
       onRequestClose={onClose}
     >
       <Pressable style={styles.overlay} onPress={onClose}>
-        <View style={styles.shadowWrapper}>
+        <View style={[styles.shadowWrapper, positionStyle]}>
           <Pressable style={styles.menuContainer} onPress={() => {}}>
             {menus.map((menu, index) => {
               const isLast = index === menus.length - 1;
@@ -67,9 +109,7 @@ const styles = StyleSheet.create({
   },
   shadowWrapper: {
     position: "absolute",
-    top: 265,
-    right: 20,
-    width: 142,
+    width: MENU_WIDTH,
     backgroundColor: Colors.white,
     borderRadius: 12,
 
@@ -78,6 +118,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.12,
     shadowRadius: 15,
     elevation: 8,
+  },
+  fallbackPosition: {
+    top: 265,
+    right: SCREEN_EDGE_MARGIN,
   },
   menuContainer: {
     backgroundColor: Colors.white,
