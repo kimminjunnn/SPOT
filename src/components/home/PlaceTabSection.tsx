@@ -1,9 +1,10 @@
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useCallback } from "react";
 import {
   View,
   ScrollView,
   NativeSyntheticEvent,
   NativeScrollEvent,
+  RefreshControl,
 } from "react-native";
 import { router } from "expo-router";
 
@@ -42,6 +43,8 @@ type PlaceTabSectionProps = {
   bookmarkSource: BookmarkSource;
   onScrollDirection?: (direction: "up" | "down") => void;
   onToggleBookmark?: (place: HomePlaceItem) => void;
+  refreshing?: boolean;
+  onRefresh?: () => void;
 };
 
 const dummyCardFallbackImgs = [
@@ -65,6 +68,8 @@ export const PlaceTabSection = ({
   bookmarkSource,
   onScrollDirection,
   onToggleBookmark,
+  refreshing = false,
+  onRefresh,
 }: PlaceTabSectionProps) => {
   const [category, setCategory] = useState<string[]>([]);
   const [sort, setSort] = useState<string[]>(["latest"]);
@@ -151,6 +156,11 @@ export const PlaceTabSection = ({
     lastOffsetYRef.current = currentY;
   };
 
+  const handleRefresh = useCallback(() => {
+    onScrollDirection?.("up");
+    onRefresh?.();
+  }, [onRefresh, onScrollDirection]);
+
   return (
     <View style={{ flex: 1 }}>
       <FilterBar
@@ -167,6 +177,9 @@ export const PlaceTabSection = ({
         showsVerticalScrollIndicator={false}
         onScroll={handleScroll}
         scrollEventThrottle={16}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+        }
       >
         {visiblePlaceList.length === 0 ? (
           <SavedPlacesEmptyState />

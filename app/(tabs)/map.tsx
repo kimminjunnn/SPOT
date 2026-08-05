@@ -74,9 +74,11 @@ export default function Map() {
   const updateAnalyzeSelection = useAnalyzeResultStore(
     (s) => s.updateSelection,
   );
-  const [savingAnalyzeBatchId, setSavingAnalyzeBatchId] = useState<
-    string | null
-  >(null);
+  const totalAnalyzeSelectedCount = analyzeBatches.reduce(
+    (total, batch) => total + batch.selectedIds.length,
+    0,
+  );
+  const [savingAnalyze, setSavingAnalyze] = useState(false);
   const [closeAnalyzeConfirmVisible, setCloseAnalyzeConfirmVisible] =
     useState(false);
   const [analyzeSheetInstance, setAnalyzeSheetInstance] = useState(0);
@@ -210,10 +212,10 @@ export default function Map() {
     }
   };
 
-  const savePlacesRequest = async (batchId: string, placeIds: number[]) => {
-    if (savingAnalyzeBatchId) return;
+  const savePlacesRequest = async (placeIds: number[]) => {
+    if (savingAnalyze) return;
 
-    setSavingAnalyzeBatchId(batchId);
+    setSavingAnalyze(true);
 
     try {
       await savePlaces({
@@ -222,28 +224,25 @@ export default function Map() {
         sourceType: "instagram",
       });
 
-      const store = useAnalyzeResultStore.getState();
-      const currentBatch = store.batches[store.currentIndex];
-
-      if (currentBatch?.id === batchId) {
-        store.completeCurrent();
-      }
+      useAnalyzeResultStore.getState().clear();
     } catch {
       Alert.alert("오류", "장소 저장에 실패했습니다.");
     } finally {
-      setSavingAnalyzeBatchId(null);
+      setSavingAnalyze(false);
     }
   };
 
-  const handleConfirmSavedPlaces = (ids: string[]) => {
-    if (!analyzeCurrent) return;
+  const handleConfirmSavedPlaces = () => {
+    const selectedIds = useAnalyzeResultStore
+      .getState()
+      .batches.flatMap((batch) => batch.selectedIds);
 
-    if (!ids.length) {
+    if (!selectedIds.length) {
       Alert.alert("알림", "저장할 장소를 선택해주세요.");
       return;
     }
 
-    const placeIds = ids
+    const placeIds = selectedIds
       .map((id) => Number(id))
       .filter((id) => !Number.isNaN(id));
 
@@ -252,11 +251,11 @@ export default function Map() {
       return;
     }
 
-    void savePlacesRequest(analyzeCurrent.id, placeIds);
+    void savePlacesRequest(placeIds);
   };
 
   const handleRequestCloseAnalyze = () => {
-    if (savingAnalyzeBatchId) return;
+    if (savingAnalyze) return;
 
     if (analyzeBatches.length > 1) {
       setCloseAnalyzeConfirmVisible(true);
@@ -312,12 +311,13 @@ export default function Map() {
       {/* 바텀 시트*/}
       {analyzeCurrent ? (
         <SavePlacesBottomSheet
-          key={`${analyzeCurrent.id}-${analyzeSheetInstance}`}
+          key={analyzeSheetInstance}
           places={analyzeCurrent.places}
-          initialSelectedIds={analyzeCurrent.selectedIds}
+          selectedIds={analyzeCurrent.selectedIds}
+          totalSelectedCount={totalAnalyzeSelectedCount}
           currentPage={analyzeCurrentIndex + 1}
           totalPages={analyzeBatches.length}
-          saving={savingAnalyzeBatchId === analyzeCurrent.id}
+          saving={savingAnalyze}
           onPrevious={goPreviousAnalyze}
           onNext={goNextAnalyze}
           onClose={handleRequestCloseAnalyze}

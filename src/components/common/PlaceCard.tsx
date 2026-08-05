@@ -15,6 +15,7 @@ import { TextStyles } from "@/src/styles/TextStyles";
 import { Colors } from "@/src/styles/Colors";
 
 import { openNaverMap } from "@/src/utils/openNaverMap";
+import { getCategoryLabel } from "@/src/utils/categoryLabel";
 import type { PlaceCardSavedUser } from "@/src/lib/mappers/placeCardSavers";
 
 interface PlaceCardProps {
@@ -98,6 +99,7 @@ export default function PlaceCard({
     .slice(0, 3)
     .map(getSavedUserImageSource);
   const actualSavedCount = savedCount ?? savedUsers?.length ?? 0;
+  const categoryLabel = getCategoryLabel(category);
 
   return (
     <Pressable style={[styles.card, style]} onPress={onPress}>
@@ -116,7 +118,7 @@ export default function PlaceCard({
           ]}
           numberOfLines={1}
         >
-          {category}
+          {categoryLabel}
         </Text>
 
         {rating !== undefined && reviewCount !== undefined && (

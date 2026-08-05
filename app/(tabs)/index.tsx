@@ -91,6 +91,7 @@ export default function Home() {
   const [markers, setMarkers] = useState<HomeMarker[]>([]);
   const [placeList, setPlaceList] = useState<HomePlaceItem[]>([]);
   const [homeRefreshKey, setHomeRefreshKey] = useState(0);
+  const [isPlaceRefreshing, setIsPlaceRefreshing] = useState(false);
 
   const navigation =
     useNavigation<BottomTabNavigationProp<RootTabParamList, "index">>();
@@ -435,12 +436,19 @@ export default function Home() {
   );
 
   useEffect(() => {
-    if (activeTab !== "place") return;
-    if (lat == null || lng == null) return;
+    if (activeTab !== "place") {
+      setIsPlaceRefreshing(false);
+      return;
+    }
+    if (lat == null || lng == null) {
+      setIsPlaceRefreshing(false);
+      return;
+    }
     if (scope.type === "friends" && friendsLoading) return;
 
     if (scope.type === "friends" && friends.length === 0) {
       setPlaceList([]);
+      setIsPlaceRefreshing(false);
       return;
     }
 
@@ -466,13 +474,28 @@ export default function Home() {
           status: e?.response?.status,
           data: e?.response?.data,
         });
+      } finally {
+        if (!cancelled) setIsPlaceRefreshing(false);
       }
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [activeTab, scope, lat, lng, friends.length, friendsLoading]);
+  }, [
+    activeTab,
+    scope,
+    lat,
+    lng,
+    friends.length,
+    friendsLoading,
+    homeRefreshKey,
+  ]);
+
+  const handleRefreshPlaces = useCallback(() => {
+    setIsPlaceRefreshing(true);
+    setHomeRefreshKey((current) => current + 1);
+  }, []);
 
   const handleSelectStory = (user: StorySelectedUser | null) => {
     if (!user) {
@@ -630,6 +653,8 @@ export default function Home() {
               bookmarkSource={getBookmarkSource(scope)}
               onScrollDirection={handleScrollDirection}
               onToggleBookmark={handleTogglePlaceBookmark}
+              refreshing={isPlaceRefreshing}
+              onRefresh={handleRefreshPlaces}
             />
           )}
 

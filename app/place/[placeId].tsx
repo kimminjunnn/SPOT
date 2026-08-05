@@ -10,9 +10,11 @@ import {
   NativeSyntheticEvent,
   Dimensions,
   ActivityIndicator,
+  Pressable,
 } from "react-native";
 import { useState, useRef, useEffect, useMemo } from "react";
-import { useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   NaverMapView,
   NaverMapMarkerOverlay,
@@ -71,6 +73,8 @@ const normalizePhotoList = (...sources: unknown[]): string[] => {
 };
 
 export default function PlaceDetailScreen() {
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { placeId, lat, lng, sourceType, sourceUserId, sourceCommentId } =
     useLocalSearchParams<{
       placeId: string;
@@ -387,6 +391,18 @@ export default function PlaceDetailScreen() {
               onNext={handleNext}
             />
           </View>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="뒤로가기"
+            hitSlop={8}
+            onPress={() => router.back()}
+            style={[styles.backButton, { top: insets.top + 8 }]}
+          >
+            <Image
+              source={require("@/assets/images/arrow-left-white.png")}
+              style={styles.backIcon}
+            />
+          </Pressable>
         </View>
 
         <View style={styles.infoSection}>
@@ -504,6 +520,18 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     alignItems: "center",
+  },
+  backButton: {
+    position: "absolute",
+    left: 12,
+    width: 44,
+    height: 44,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  backIcon: {
+    width: 44,
+    height: 44,
   },
   infoSection: {
     paddingHorizontal: 16,

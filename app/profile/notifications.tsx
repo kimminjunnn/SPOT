@@ -23,6 +23,8 @@ import { openNotificationTarget } from "@/src/lib/navigation/openNotificationTar
 import {
   acceptFollowRequest,
   deleteFriend,
+  getFriendStatus,
+  searchFriends,
   sendFollowRequest,
   type Friend,
 } from "@/src/lib/api/friends";
@@ -45,12 +47,56 @@ function toNotificationFriend(notification: NotificationDetail): Friend | null {
   };
 }
 
+async function resolveFollowAction(
+  notification: NotificationDetail,
+  fallback: NotificationFollowAction,
+): Promise<NotificationFollowAction | undefined> {
+  const senderId = notification.senderId;
+  if (senderId === null) return undefined;
+
+  const keyword = notification.spotId?.trim();
+
+  if (keyword) {
+    try {
+      const result = (await searchFriends(keyword)).find(
+        (friend) => friend.id === senderId,
+      );
+
+      switch (result?.status) {
+        case "friends":
+          return "following";
+        case "request_received":
+          return "accept";
+        case "none":
+        case "request_sent":
+          return "followBack";
+        case "blocked":
+          return undefined;
+      }
+    } catch (error) {
+      console.warn("알림 팔로우 관계 검색 실패:", error);
+    }
+  }
+
+  try {
+    const relationship = await getFriendStatus(senderId);
+
+    if (relationship.status === "friend") return "following";
+    if (relationship.status === "block") return undefined;
+    if (relationship.status === "none") return "followBack";
+  } catch (error) {
+    console.warn("알림 팔로우 관계 조회 실패:", error);
+  }
+
+  return fallback;
+}
+
 export default function NotificationsScreen() {
   const [notifications, setNotifications] = useState<NotificationDetail[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [followActionBySenderId, setFollowActionBySenderId] = useState<
-    Record<number, NotificationFollowAction>
+    Record<number, NotificationFollowAction | undefined>
   >({});
   const [actioningBySenderId, setActioningBySenderId] = useState<
     Record<number, boolean>
@@ -70,6 +116,22 @@ export default function NotificationsScreen() {
     [],
   );
 
+  const reconcileFollowAction = useCallback(
+    async (
+      notification: NotificationDetail,
+      fallback: NotificationFollowAction,
+    ) => {
+      const senderId = notification.senderId;
+      if (senderId === null) return;
+
+      const nextAction = await resolveFollowAction(notification, fallback);
+      setFollowActionBySenderId((prev) => {
+        return { ...prev, [senderId]: nextAction };
+      });
+    },
+    [],
+  );
+
   useFocusEffect(
     useCallback(() => {
       let alive = true;
@@ -82,6 +144,33 @@ export default function NotificationsScreen() {
           const list = await fetchNotificationDetails();
           if (!alive) return;
 
+          const followNotifications = [
+            ...new Map(
+              list
+                .filter(
+                  (notification) =>
+                    notification.type === "follow_request" &&
+                    notification.senderId !== null,
+                )
+                .map((notification) => [
+                  notification.senderId as number,
+                  notification,
+                ]),
+            ).values(),
+          ];
+          const resolvedActions = await Promise.all(
+            followNotifications.map(async (notification) => ({
+              senderId: notification.senderId as number,
+              action: await resolveFollowAction(notification, "accept"),
+            })),
+          );
+          if (!alive) return;
+
+          setFollowActionBySenderId(
+            Object.fromEntries(
+              resolvedActions.map(({ senderId, action }) => [senderId, action]),
+            ),
+          );
           setNotifications(list);
 
           if (list.some((notification) => notification.type === "follow_accept")) {
@@ -142,8 +231,6 @@ export default function NotificationsScreen() {
 
       if (action === "following") {
         removeFriend(senderId);
-      } else if (notificationFriend) {
-        upsertFriend(notificationFriend);
       }
 
       try {
@@ -152,6 +239,7 @@ export default function NotificationsScreen() {
           setFollowAction(senderId, "followBack");
         } else if (action === "followBack") {
           await sendFollowRequest(senderId);
+          if (notificationFriend) upsertFriend(notificationFriend);
           setFollowAction(senderId, "following");
         } else {
           await deleteFriend(senderId);
@@ -168,14 +256,16 @@ export default function NotificationsScreen() {
         );
 
         if (action === "accept" && [400, 404, 409].includes(status)) {
-          setFollowAction(senderId, "followBack");
+          await reconcileFollowAction(notification, "followBack");
           void loadFriends({ force: true });
-          Alert.alert("알림", "이미 처리된 팔로우 요청이에요.");
-        } else if (action === "followBack" && status === 409) {
-          setFollowAction(senderId, "following");
+        } else if (
+          action === "followBack" &&
+          [400, 404, 409].includes(status)
+        ) {
+          await reconcileFollowAction(notification, "following");
           void loadFriends({ force: true });
         } else if (action === "following" && status === 404) {
-          setFollowAction(senderId, "followBack");
+          await reconcileFollowAction(notification, "followBack");
           void loadFriends({ force: true });
         } else {
           if (previousFriend) {
@@ -194,7 +284,13 @@ export default function NotificationsScreen() {
         });
       }
     },
-    [loadFriends, removeFriend, setFollowAction, upsertFriend],
+    [
+      loadFriends,
+      reconcileFollowAction,
+      removeFriend,
+      setFollowAction,
+      upsertFriend,
+    ],
   );
 
   const handlePressNotification = useCallback(
@@ -259,7 +355,12 @@ export default function NotificationsScreen() {
             const senderId = notification.senderId;
             const followAction =
               notification.type === "follow_request" && senderId !== null
-                ? (followActionBySenderId[senderId] ?? "accept")
+                ? Object.prototype.hasOwnProperty.call(
+                    followActionBySenderId,
+                    senderId,
+                  )
+                  ? followActionBySenderId[senderId]
+                  : "accept"
                 : undefined;
             const canOpenPlace =
               notification.targetId !== null &&

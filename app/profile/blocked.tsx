@@ -99,6 +99,7 @@ export default function BlockedScreen() {
               userId={u.userId}
               bio={u.bio}
               avatarUri={u.avatarUri}
+              avatarFill
               actionLabel={unblocking ? "해제 중" : "차단 해제"}
               actionDisabled={unblocking}
               onPressAction={() => handleUnblock(u)}

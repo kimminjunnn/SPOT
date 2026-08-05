@@ -14,6 +14,7 @@ export function getCategoryLabel(list?: string | null): string {
     list === "디저트" ||
     list === "소품샵" ||
     list === "체험" ||
+    list === "옷가게" ||
     list === "기타"
   ) {
     return list;
@@ -48,10 +49,19 @@ export function getCategoryLabel(list?: string | null): string {
     case "goods_shop":
     case "gift":
     case "giftshop":
+    case "gift_shop":
     case "souvenir":
     case "souvenir_shop":
     case "shop":
       return "소품샵";
+
+    // 옷가게
+    case "clothing_store":
+    case "clothing":
+    case "clothes":
+    case "fashion":
+    case "fashion_store":
+      return "옷가게";
 
     // 체험
     case "experience":

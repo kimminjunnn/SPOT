@@ -3,8 +3,6 @@ import React, {
   useMemo,
   useCallback,
   useRef,
-  useState,
-  useEffect,
   memo,
 } from "react";
 import { View, Text, Image, StyleSheet, Pressable, Alert } from "react-native";
@@ -28,22 +26,24 @@ export type SavePlaceItem = {
 
 type Props = {
   places: SavePlaceItem[];
-  initialSelectedIds?: string[];
+  selectedIds: string[];
+  totalSelectedCount: number;
   currentPage?: number;
   totalPages?: number;
   saving?: boolean;
   onPrevious?: () => void;
   onNext?: () => void;
   onClose: () => void;
-  onChangeSelection?: (ids: string[]) => void;
-  onConfirm?: (ids: string[]) => void;
+  onChangeSelection: (ids: string[]) => void;
+  onConfirm?: () => void;
 };
 
 const FOOTER_HEIGHT = 84;
 
 function SavePlacesBottomSheet({
   places,
-  initialSelectedIds = [],
+  selectedIds,
+  totalSelectedCount,
   currentPage = 1,
   totalPages = 1,
   saving = false,
@@ -57,42 +57,26 @@ function SavePlacesBottomSheet({
   const insets = useSafeAreaInsets();
 
   const snapPoints = useMemo(() => ["6.7%", "50%", "75%"], []);
-
-  const [selected, setSelected] = useState<Set<string>>(
-    () => new Set(initialSelectedIds),
-  );
-
-  const onChangeSelectionRef = useRef(onChangeSelection);
   const maxSelect = places.length;
-  useEffect(() => {
-    onChangeSelectionRef.current = onChangeSelection;
-  }, [onChangeSelection]);
-
-  const selectedIds = useMemo(() => Array.from(selected), [selected]);
-
-  useEffect(() => {
-    onChangeSelectionRef.current?.(selectedIds);
-  }, [selectedIds]);
+  const selected = useMemo(() => new Set(selectedIds), [selectedIds]);
 
   const toggleOne = useCallback(
     (id: string) => {
-      setSelected((prev) => {
-        const next = new Set(prev);
+      const next = new Set(selected);
 
-        if (next.has(id)) {
-          next.delete(id);
-        } else {
-          if (next.size >= maxSelect) {
-            Alert.alert("선택 제한", `최대 ${maxSelect}개까지 선택 가능`);
-            return prev;
-          }
-          next.add(id);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        if (next.size >= maxSelect) {
+          Alert.alert("선택 제한", `최대 ${maxSelect}개까지 선택 가능`);
+          return;
         }
+        next.add(id);
+      }
 
-        return next;
-      });
+      onChangeSelection(Array.from(next));
     },
-    [maxSelect],
+    [maxSelect, onChangeSelection, selected],
   );
 
   const isAllChecked = selected.size > 0 && selected.size === places.length;
@@ -100,17 +84,17 @@ function SavePlacesBottomSheet({
   const toggleAll = useCallback(() => {
     if (!places.length) return;
 
-    setSelected(
+    onChangeSelection(
       isAllChecked
-        ? new Set()
-        : new Set(places.map((p) => p.id).slice(0, maxSelect)),
+        ? []
+        : places.map((p) => p.id).slice(0, maxSelect),
     );
-  }, [isAllChecked, places, maxSelect]);
+  }, [isAllChecked, maxSelect, onChangeSelection, places]);
 
   const handleConfirm = useCallback(() => {
     if (saving) return;
-    onConfirm?.(selectedIds);
-  }, [onConfirm, saving, selectedIds]);
+    onConfirm?.();
+  }, [onConfirm, saving]);
 
   const hasMultiplePages = totalPages > 1;
   const canGoPrevious = currentPage > 1 && !saving;
@@ -124,26 +108,26 @@ function SavePlacesBottomSheet({
             onPress={handleConfirm}
             style={[
               styles.cta,
-              (selectedIds.length === 0 || saving) && styles.ctaDisabled,
+              (totalSelectedCount === 0 || saving) && styles.ctaDisabled,
             ]}
-            disabled={selectedIds.length === 0 || saving}
+            disabled={totalSelectedCount === 0 || saving}
             accessibilityRole="button"
-            accessibilityLabel={`선택한 장소 ${selectedIds.length}곳 저장하기`}
+            accessibilityLabel={`선택한 장소 ${totalSelectedCount}곳 저장하기`}
             accessibilityState={{
-              disabled: selectedIds.length === 0 || saving,
+              disabled: totalSelectedCount === 0 || saving,
               busy: saving,
             }}
           >
             <Text style={styles.ctaText}>
               {saving
                 ? "저장 중..."
-                : `장소 ${selectedIds.length}곳 저장하기`}
+                : `장소 ${totalSelectedCount}곳 저장하기`}
             </Text>
           </Pressable>
         </View>
       </BottomSheetFooter>
     ),
-    [selectedIds.length, handleConfirm, saving],
+    [handleConfirm, saving, totalSelectedCount],
   );
 
   return (
