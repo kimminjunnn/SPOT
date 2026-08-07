@@ -36,6 +36,7 @@ export default function RootLayout() {
   const pathname = usePathname();
   const segments = useSegments();
   const pendingAnalyzeTriggerRef = useRef(false);
+  const pendingAnalyzeAfterLoginRef = useRef(false);
   const didCheckInitialUrlRef = useRef(false);
   const pendingAnalyzeResumeRef = useRef<Promise<boolean> | null>(null);
   const [isResumingPendingAnalyze, setIsResumingPendingAnalyze] =
@@ -125,6 +126,7 @@ export default function RootLayout() {
       }
 
       if (!token) {
+        pendingAnalyzeAfterLoginRef.current = true;
         router.replace({
           pathname: "/login",
           params: {
@@ -193,6 +195,7 @@ export default function RootLayout() {
 
         // 401 인터셉터가 인증을 비운 경우 pending URL은 유지하고 재로그인한다.
         if (!useAuthStore.getState().token) {
+          pendingAnalyzeAfterLoginRef.current = true;
           router.replace({
             pathname: "/login",
             params: {
@@ -203,6 +206,8 @@ export default function RootLayout() {
           return true;
         }
 
+        await SharedStore?.clearPendingAnalyzeUrl?.();
+        await SharedStore?.clearPendingAnalyzeTicketId?.();
         Alert.alert("저장 실패", message);
         router.replace("/(tabs)/map");
         return true;
@@ -241,15 +246,18 @@ export default function RootLayout() {
   }, [handleAnalyzeTrigger, hasHydrated]);
 
   useEffect(() => {
-    if (!hasHydrated || !token) return;
+    if (!hasHydrated || !token || !pendingAnalyzeAfterLoginRef.current) {
+      return;
+    }
 
     let alive = true;
+    pendingAnalyzeAfterLoginRef.current = false;
 
     (async () => {
       const resumed = await resumePendingAnalyze();
       if (!alive || !resumed) return;
 
-      console.log("[AnalyzeRewardGate] initial pending check resumed");
+      console.log("[AnalyzeRewardGate] post-login pending resumed");
     })();
 
     return () => {
@@ -294,20 +302,13 @@ export default function RootLayout() {
     };
   }, [handleAnalyzeTrigger]);
 
-  // ✅ fallback: 앱이 active 될 때도 한번 체크 (딥링크 이벤트 씹히는 케이스 대비)
+  // ✅ 분석이 완료된 공유 확장에서 딥링크 이벤트가 누락된 경우만 보완한다.
+  // pending URL은 명시적인 analyze-result 딥링크에서만 재개해 일반 앱 진입을 막는다.
   useEffect(() => {
     const { SharedStore } = NativeModules;
 
     const sub = AppState.addEventListener("change", async (state) => {
       if (state !== "active") return;
-
-      const pendingUrl = await SharedStore?.getPendingAnalyzeUrl?.();
-      console.log("[AnalyzeRewardGate] AppState pendingAnalyzeUrl:", pendingUrl);
-      if (typeof pendingUrl === "string" && pendingUrl.length > 0) {
-        const handled = await handleAnalyzeTrigger();
-        if (!handled) pendingAnalyzeTriggerRef.current = true;
-        return;
-      }
 
       const json = await SharedStore?.getLatestAnalyzeResult?.();
       if (!json) return;
@@ -316,7 +317,7 @@ export default function RootLayout() {
     });
 
     return () => sub.remove();
-  }, [handleAnalyzeTrigger, router]);
+  }, [router]);
 
   if (!fontsLoaded || !hasHydrated) return null;
 
