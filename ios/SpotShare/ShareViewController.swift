@@ -10,7 +10,7 @@ final class ShareViewController: UIViewController {
   private let legacyAnalyzeResultKey = "latestAnalyzeResult"
 
 
-  private let baseURL = "http://3.34.94.184:8001"
+  private let baseURL = "http://3.35.205.203:8001"
   private let eligibilityPath = "/extract/eligibility"
   private let analyzePath = "/analyze"
   private let inquiriesPath = "/inquiries"
