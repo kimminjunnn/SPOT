@@ -16,6 +16,7 @@ import PlacesBottomSheetContainer from "@/src/components/bottomSheet/PlacesBotto
 import SavePlacesBottomSheet from "@/src/components/bottomSheet/SavePlacesBottomSheet";
 import SearchDetailBottomSheet from "@/src/components/bottomSheet/SearchDetailBottomSheet";
 import SearchDetailsBottomSheet from "@/src/components/bottomSheet/SearchDetailsBottomSheet";
+import MapDetailLoadingIndicator from "@/src/components/map/MapDetailLoadingIndicator";
 import UserLocationMarker from "@/src/components/map/UserLocationMarker";
 import ConfirmModal from "@/src/components/common/ConfirmModal";
 import InquiryBottomSheet, {
@@ -42,6 +43,12 @@ export default function Map() {
   const inquiryRef = useRef<InquiryBottomSheetRef>(null);
 
   const [selectedPlaceId, setSelectedPlaceId] = useState<number | null>(null);
+  const [isDetailLoading, setIsDetailLoading] = useState(false);
+  const [loadingPinCoords, setLoadingPinCoords] = useState<{
+    latitude: number;
+    longitude: number;
+  } | null>(null);
+  const detailRequestIdRef = useRef(0);
 
   const hydrate = useAuthStore((s) => s.hydrate);
 
@@ -191,7 +198,13 @@ export default function Map() {
 
     if (!gid || !coords) return;
 
+    const requestId = ++detailRequestIdRef.current;
     setSelectedPlaceId(place.placeId);
+    setLoadingPinCoords({
+      latitude: place.latitude,
+      longitude: place.longitude,
+    });
+    setIsDetailLoading(true);
 
     try {
       const detail = await fetchPlaceDetail({
@@ -199,6 +212,8 @@ export default function Map() {
         lat: coords.lat,
         lng: coords.lng,
       });
+
+      if (requestId !== detailRequestIdRef.current) return;
 
       focus(detail);
 
@@ -212,7 +227,13 @@ export default function Map() {
         });
       }
     } catch (e) {
+      if ((e as { code?: string }).code === "ERR_CANCELED") return;
       console.error("❌ place detail fetch 실패:", e);
+    } finally {
+      if (requestId === detailRequestIdRef.current) {
+        setIsDetailLoading(false);
+        setLoadingPinCoords(null);
+      }
     }
   };
 
@@ -311,6 +332,10 @@ export default function Map() {
           );
         })}
       </NaverMapView>
+
+      {isDetailLoading && loadingPinCoords && (
+        <MapDetailLoadingIndicator mapRef={mapRef} {...loadingPinCoords} />
+      )}
 
       {/* 바텀 시트*/}
       {analyzeCurrent ? (

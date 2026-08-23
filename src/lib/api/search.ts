@@ -57,6 +57,10 @@ export async function fetchPlaceDetail(params: {
 }): Promise<Place> {
   const { gid, lat, lng } = params;
 
+  // A pin can be tapped again before its detail request finishes. Only the
+  // most recent selection is relevant, so free the previous request instead
+  // of letting stale responses compete to update the detail sheet.
+  inflightDetail?.abort();
   inflightDetail = new AbortController();
 
   const res = await api8080.get<ApiPlace>("/search/detail", {

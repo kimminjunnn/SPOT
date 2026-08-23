@@ -6,6 +6,7 @@ import {
 
 import MyLocationButton from "@/src/components/map/MyLocationButton";
 import UserLocationMarker from "@/src/components/map/UserLocationMarker";
+import MapDetailLoadingIndicator from "@/src/components/map/MapDetailLoadingIndicator";
 import { Colors } from "@/src/styles/Colors";
 import { getMapPinImage } from "@/src/utils/getMapPinImage";
 import type { NaverMapViewRef } from "@mj-studio/react-native-naver-map";
@@ -20,6 +21,8 @@ type MapTabSectionProps = {
   mapRef: React.RefObject<NaverMapViewRef | null>;
   markers: HomeMarker[];
   selectedPlaceId?: number | null;
+  isDetailLoading: boolean;
+  loadingPinCoords: { latitude: number; longitude: number } | null;
   isCommentOpen: boolean;
   onPressCurrentLocation: () => void | Promise<void>;
   onPressMarker: (marker: HomeMarker) => void;
@@ -29,6 +32,8 @@ export const MapTabSection = ({
   mapRef,
   markers,
   selectedPlaceId,
+  isDetailLoading,
+  loadingPinCoords,
   isCommentOpen,
   onPressCurrentLocation,
   onPressMarker,
@@ -71,6 +76,10 @@ export const MapTabSection = ({
           );
         })}
       </NaverMapView>
+
+      {isDetailLoading && loadingPinCoords && (
+        <MapDetailLoadingIndicator mapRef={mapRef} {...loadingPinCoords} />
+      )}
 
       {!isCommentOpen && (
         <MyLocationButton

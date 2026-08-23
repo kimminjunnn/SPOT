@@ -116,6 +116,12 @@ export default function Home() {
 
   const [didInitCamera, setDidInitCamera] = useState(false);
   const [selectedPlaceId, setSelectedPlaceId] = useState<number | null>(null);
+  const [isDetailLoading, setIsDetailLoading] = useState(false);
+  const [loadingPinCoords, setLoadingPinCoords] = useState<{
+    latitude: number;
+    longitude: number;
+  } | null>(null);
+  const detailRequestIdRef = useRef(0);
 
   const focusedPlace = useSearchStore((state) => state.focused);
   const focusPlace = useSearchStore((state) => state.focus);
@@ -533,6 +539,7 @@ export default function Home() {
   const handlePressMapMarker = async (marker: HomeMarker) => {
     if (lat == null || lng == null) return;
 
+    const requestId = ++detailRequestIdRef.current;
     const placeId = getHomeMarkerPlaceId(marker);
     let gid = getHomeMarkerGid(marker);
 
@@ -545,10 +552,19 @@ export default function Home() {
     if (placeId != null) {
       setSelectedPlaceId(placeId);
     }
+    setLoadingPinCoords({ latitude: marker.lat, longitude: marker.lng });
+    setIsDetailLoading(true);
+    const finishDetailLoading = () => {
+      if (requestId === detailRequestIdRef.current) {
+        setIsDetailLoading(false);
+        setLoadingPinCoords(null);
+      }
+    };
 
     if (!gid && placeId != null) {
       try {
         const more = await fetchPlaceMore({ placeId, lat, lng });
+        if (requestId !== detailRequestIdRef.current) return;
         gid = normalizeGid(more.places?.gId);
       } catch (e: any) {
         console.error("[Home.MapTab] failed to resolve gid", {
@@ -556,6 +572,7 @@ export default function Home() {
           message: e?.message,
           status: e?.response?.status,
         });
+        finishDetailLoading();
         return;
       }
     }
@@ -565,11 +582,13 @@ export default function Home() {
         markerKey: marker.key,
         placeId,
       });
+      finishDetailLoading();
       return;
     }
 
     try {
       const detail = await fetchPlaceDetail({ gid, lat, lng });
+      if (requestId !== detailRequestIdRef.current) return;
       setSelectedPlaceId(detail.placeId);
       focusPlace(detail);
 
@@ -582,11 +601,14 @@ export default function Home() {
         });
       }
     } catch (e: any) {
+      if (e?.code === "ERR_CANCELED") return;
       console.log("[Home.MapTab] place detail fetch error:", {
         message: e?.message,
         status: e?.response?.status,
         data: e?.response?.data,
       });
+    } finally {
+      finishDetailLoading();
     }
   };
 
@@ -640,6 +662,8 @@ export default function Home() {
               mapRef={mapRef}
               markers={markers}
               selectedPlaceId={selectedPlaceId}
+              isDetailLoading={isDetailLoading}
+              loadingPinCoords={loadingPinCoords}
               isCommentOpen={!!focusedPlace}
               onPressCurrentLocation={moveToCurrentLocation}
               onPressMarker={handlePressMapMarker}
