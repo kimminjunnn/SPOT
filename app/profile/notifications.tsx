@@ -20,6 +20,7 @@ import {
   type NotificationDetail,
 } from "@/src/lib/api/notification";
 import { openNotificationTarget } from "@/src/lib/navigation/openNotificationTarget";
+import { openFriendHome } from "@/src/lib/navigation/openFriendHome";
 import {
   acceptFollowRequest,
   deleteFriend,
@@ -324,6 +325,21 @@ export default function NotificationsScreen() {
     });
   }, []);
 
+  const handlePressSender = useCallback((notification: NotificationDetail) => {
+    const senderId = notification.senderId;
+    if (senderId === null) return;
+
+    openFriendHome({
+      id: senderId,
+      nickname:
+        notification.spotNickname?.trim() ||
+        notification.spotId?.trim() ||
+        "사용자",
+      userId: notification.spotId?.trim() ?? "",
+      avatarUrl: notification.photo,
+    });
+  }, []);
+
   return (
     <ProfileLayout>
       <ProfileHeader title="알림" showBack />
@@ -366,9 +382,10 @@ export default function NotificationsScreen() {
               notification.targetId !== null &&
               (notification.targetType === "place" ||
                 !!notification.placeName?.trim());
-            const opensNonPlaceTarget =
-              notification.type === "instagram_extract" ||
-              notification.targetType === "map";
+            // 추출 완료 알림은 결과를 다시 열지 않는다.
+            const opensNonPlaceTarget = notification.targetType === "map";
+            const canOpenSenderProfile =
+              notification.type !== "instagram_extract" && senderId !== null;
 
             return (
               <NotificationRow
@@ -378,11 +395,13 @@ export default function NotificationsScreen() {
                   senderId !== null && actioningBySenderId[senderId] === true
                 }
                 onPress={
-                  opensNonPlaceTarget
-                    ? () => handlePressNotification(notification)
-                    : canOpenPlace
-                      ? () => handlePressPlace(notification)
-                      : undefined
+                  canOpenSenderProfile
+                    ? () => handlePressSender(notification)
+                    : opensNonPlaceTarget
+                      ? () => handlePressNotification(notification)
+                      : canOpenPlace
+                        ? () => handlePressPlace(notification)
+                        : undefined
                 }
                 onPressFollowAction={
                   followAction
@@ -390,7 +409,9 @@ export default function NotificationsScreen() {
                     : undefined
                 }
                 onPressPlace={
-                  notification.placeName?.trim() && canOpenPlace
+                  notification.type !== "instagram_extract" &&
+                  notification.placeName?.trim() &&
+                  canOpenPlace
                     ? () => handlePressPlace(notification)
                     : undefined
                 }

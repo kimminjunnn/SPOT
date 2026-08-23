@@ -56,6 +56,7 @@ const InquiryBottomSheet = forwardRef<
   const insets = useSafeAreaInsets();
 
   const [content, setContent] = useState("");
+  const [inputInstanceKey, setInputInstanceKey] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
 
@@ -64,6 +65,10 @@ const InquiryBottomSheet = forwardRef<
 
   const resetForm = useCallback(() => {
     setContent("");
+    // BottomSheetTextInput을 제어 컴포넌트로 두면 iOS 한글 조합 중
+    // value 재주입 때문에 자모가 분리될 수 있다. 새 문의를 열 때만
+    // 입력기를 다시 마운트해 네이티브 입력값도 함께 초기화한다.
+    setInputInstanceKey((current) => current + 1);
     setIsSubmitting(false);
     setIsSubmitted(false);
   }, []);
@@ -192,8 +197,9 @@ const InquiryBottomSheet = forwardRef<
           <>
             <View style={styles.inputBox}>
               <BottomSheetTextInput
+                key={inputInstanceKey}
                 style={styles.input}
-                value={content}
+                defaultValue=""
                 onChangeText={setContent}
                 placeholder="문의하실 내용을 작성해주세요"
                 placeholderTextColor={Colors.gray_300}

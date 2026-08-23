@@ -146,6 +146,10 @@ export default function NotificationRow({
   onPress,
 }: NotificationRowProps) {
   const isInstagramExtract = notification.type === "instagram_extract";
+  // 추출 완료 알림은 결과를 다시 열지 않는 안내 전용 행이다.
+  // 호출부에서 실수로 핸들러를 전달해도 이동하지 않게 여기서도 막는다.
+  const canOpenTarget = !isInstagramExtract && !!onPress;
+  const canOpenPlace = !isInstagramExtract && !!onPressPlace;
   const hasSender = notification.senderId !== null;
   const actionMeta = followAction
     ? FOLLOW_ACTION_META[followAction]
@@ -175,9 +179,9 @@ export default function NotificationRow({
   return (
     <View style={[styles.container, !notification.isRead && styles.unread]}>
       <Pressable
-        disabled={!onPress}
-        onPress={onPress}
-        accessibilityRole={onPress ? "button" : undefined}
+        disabled={!canOpenTarget}
+        onPress={canOpenTarget ? onPress : undefined}
+        accessibilityRole={canOpenTarget ? "button" : undefined}
         accessibilityLabel={accessibilityLabel}
         style={({ pressed }) => [
           styles.targetArea,
@@ -236,7 +240,7 @@ export default function NotificationRow({
             </Text>
           )}
 
-          {notification.placeName && onPressPlace ? (
+          {notification.placeName && canOpenPlace ? (
             <Pressable
               onPress={(event) => {
                 event.stopPropagation();
