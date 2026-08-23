@@ -9,6 +9,8 @@ type Props = {
   mapRef: RefObject<NaverMapViewRef | null>;
   latitude: number;
   longitude: number;
+  /** Keeps the spinner inside the visible map area when a pin is near its top. */
+  minimumTop?: number;
 };
 
 /** Positions a non-blocking spinner directly above the selected native map pin. */
@@ -16,6 +18,7 @@ export default function MapDetailLoadingIndicator({
   mapRef,
   latitude,
   longitude,
+  minimumTop = 8,
 }: Props) {
   const [point, setPoint] = useState<{ x: number; y: number } | null>(null);
 
@@ -45,7 +48,13 @@ export default function MapDetailLoadingIndicator({
   return (
     <View
       pointerEvents="none"
-      style={[styles.container, { left: point.x - 20, top: point.y - 128 }]}
+      style={[
+        styles.container,
+        {
+          left: point.x - 20,
+          top: Math.max(minimumTop, point.y - 128),
+        },
+      ]}
     >
       <ActivityIndicator color={Colors.primary_500} size="small" />
     </View>

@@ -334,7 +334,11 @@ export default function Map() {
       </NaverMapView>
 
       {isDetailLoading && loadingPinCoords && (
-        <MapDetailLoadingIndicator mapRef={mapRef} {...loadingPinCoords} />
+        <MapDetailLoadingIndicator
+          mapRef={mapRef}
+          minimumTop={122}
+          {...loadingPinCoords}
+        />
       )}
 
       {/* 바텀 시트*/}
