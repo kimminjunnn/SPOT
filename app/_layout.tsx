@@ -41,6 +41,17 @@ export default function RootLayout() {
   const pendingAnalyzeResumeRef = useRef<Promise<boolean> | null>(null);
   const [isResumingPendingAnalyze, setIsResumingPendingAnalyze] =
     useState(false);
+  const rewardGateVisible = useAnalyzeRewardGateStore((s) => s.visible);
+
+  // iOS는 두 개의 Modal을 동시에 표시하면 먼저 떠 있던 Modal이 닫히지 않는다.
+  // 저장 로딩 시트를 먼저 내리고, 닫히는 애니메이션이 끝난 뒤 광고 모달을 띄운다.
+  const openRewardGate = useCallback((url: string, ticketId: string) => {
+    setIsResumingPendingAnalyze(false);
+
+    setTimeout(() => {
+      useAnalyzeRewardGateStore.getState().open(url, ticketId);
+    }, 400);
+  }, []);
 
   useEffect(() => {
     hydrate();
@@ -137,18 +148,18 @@ export default function RootLayout() {
         return true;
       }
 
+      const savedTicketId = await SharedStore?.getPendingAnalyzeTicketId?.();
+
+      // 이미 티켓이 있으면 네트워크 호출 없이 광고 모달로 바로 넘어간다.
+      if (typeof savedTicketId === "string" && savedTicketId.length > 0) {
+        openRewardGate(pendingUrl, savedTicketId);
+        router.replace("/(tabs)/map");
+        return true;
+      }
+
       setIsResumingPendingAnalyze(true);
 
       try {
-        const savedTicketId =
-          await SharedStore?.getPendingAnalyzeTicketId?.();
-
-        if (typeof savedTicketId === "string" && savedTicketId.length > 0) {
-          useAnalyzeRewardGateStore.getState().open(pendingUrl, savedTicketId);
-          router.replace("/(tabs)/map");
-          return true;
-        }
-
         console.log("[AnalyzeRewardGate] resuming after login:", pendingUrl);
         const eligibility = await checkExtractEligibility(pendingUrl);
 
@@ -160,9 +171,7 @@ export default function RootLayout() {
           await SharedStore?.setPendingAnalyzeTicketId?.(
             eligibility.ticket_id,
           );
-          useAnalyzeRewardGateStore
-            .getState()
-            .open(pendingUrl, eligibility.ticket_id);
+          openRewardGate(pendingUrl, eligibility.ticket_id);
           router.replace("/(tabs)/map");
           return true;
         }
@@ -223,7 +232,7 @@ export default function RootLayout() {
     } finally {
       pendingAnalyzeResumeRef.current = null;
     }
-  }, [router, token]);
+  }, [openRewardGate, router, token]);
 
   const handleAnalyzeTrigger = useCallback(async () => {
     if (!hasHydrated) return false;
@@ -354,7 +363,9 @@ export default function RootLayout() {
             options={{ headerShown: false, presentation: "card" }}
           />
         </Stack>
-        <AnalyzeLoadingBottomSheet visible={isResumingPendingAnalyze} />
+        <AnalyzeLoadingBottomSheet
+          visible={isResumingPendingAnalyze && !rewardGateVisible}
+        />
         <AnalyzeRewardGateModal sharedStore={NativeModules.SharedStore} />
       </BottomSheetModalProvider>
     </GestureHandlerRootView>
