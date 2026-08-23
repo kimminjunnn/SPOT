@@ -319,6 +319,11 @@ export default function RootLayout() {
     const sub = AppState.addEventListener("change", async (state) => {
       if (state !== "active") return;
 
+      // 진행 중인 재개 작업이 없는데 로딩 시트가 떠 있으면 잔상이므로 내린다.
+      if (!pendingAnalyzeResumeRef.current) {
+        setIsResumingPendingAnalyze(false);
+      }
+
       const json = await SharedStore?.getLatestAnalyzeResult?.();
       if (!json) return;
 
