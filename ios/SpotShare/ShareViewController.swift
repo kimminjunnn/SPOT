@@ -190,6 +190,9 @@ final class ShareViewController: UIViewController {
       self.iconView.image = UIImage(named: "share-failure")
       self.titleLabel.text = "저장에 실패했어요"
       self.subtitleLabel.text = "주소가 없거나 인식이 어려운 게시물은\n저장이 불가능해요"
+      self.iconView.isHidden = false
+      self.titleLabel.isHidden = false
+      self.subtitleLabel.isHidden = false
       self.actionButton.setTitle("닫기", for: .normal)
       self.actionButton.isHidden = false
       self.inquiryLinkButton.isHidden = false
