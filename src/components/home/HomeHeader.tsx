@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { View, StyleSheet, Alert } from "react-native";
 import { router } from "expo-router";
 import StoryList from "@/src/components/home/StoryList";
@@ -8,7 +9,10 @@ import { useMyProfileStore } from "@/src/stores/useMyProfileStore";
 import { useFriendsStore } from "@/src/stores/useFriendsStore";
 
 import type { SelectedUser as StorySelectedUser } from "@/src/components/home/StoryList";
-import { blockFriend, type Friend } from "@/src/lib/api/friends";
+import { blockFriend, reportFriend, type Friend } from "@/src/lib/api/friends";
+import ReportModal, {
+  type ReportReason,
+} from "@/src/components/common/ReportModal";
 
 type HomeHeaderProps = {
   friends: Friend[];
@@ -50,6 +54,7 @@ export const HomeHeader = ({
   const loadFriends = useFriendsStore((s) => s.loadFriends);
   const removeFriend = useFriendsStore((s) => s.removeFriend);
   const upsertFriend = useFriendsStore((s) => s.upsertFriend);
+  const [reportModalVisible, setReportModalVisible] = useState(false);
   const handlePressEditProfile = () => {
     router.push("/profile/edit");
   };
@@ -83,16 +88,23 @@ export const HomeHeader = ({
   };
 
   const handlePressReport = () => {
-    Alert.alert("신고하기", "이 사용자를 신고하시겠어요?", [
-      { text: "취소", style: "cancel" },
-      {
-        text: "신고",
-        style: "destructive",
-        onPress: () => {
-          console.log("신고 실행");
-        },
-      },
-    ]);
+    if (!selectedUser?.userId) return;
+    setReportModalVisible(true);
+  };
+
+  const handleSubmitReport = async (reason: ReportReason, label: string) => {
+    if (!selectedUser?.userId) return;
+
+    try {
+      await reportFriend(selectedUser.userId, {
+        reason,
+        detail: `${label} 사유로 신고합니다.`,
+      });
+      Alert.alert("신고 완료", "신고가 접수되었습니다.");
+    } catch {
+      Alert.alert("신고 실패", "다시 시도해주세요.");
+      throw new Error("Failed to report friend");
+    }
   };
 
   const isMySelectedCard = selectedUser?.scope === "me";
@@ -117,37 +129,44 @@ export const HomeHeader = ({
   const selectedFriendAvatars = isMySelectedCard ? myFriendAvatars : [];
 
   return (
-    <View style={styles.headerContainer}>
-      {showStoryList && (
-        <StoryList
-          myNickname={myNickname}
-          myUserId={myUserId}
-          myBio={myBio}
-          myAvatarSource={myAvatarSource}
-          friends={friends}
-          selectedUser={selectedUser}
-          onSelectStory={onSelectStory}
-        />
-      )}
-
-      {showUserCard && selectedUser ? (
-        <View style={styles.userCardWrapper}>
-          <UserCard
-            variant="story"
-            profileImage={selectedProfileImage}
-            nickname={selectedNickname}
-            userid={selectedUserId}
-            bio={selectedBio}
-            friendAvatars={selectedFriendAvatars}
-            friendCount={selectedFriendCount}
-            isMyCard={isMySelectedCard}
-            onPressEditProfile={handlePressEditProfile}
-            onPressBlock={handlePressBlock}
-            onPressReport={handlePressReport}
+    <>
+      <View style={styles.headerContainer}>
+        {showStoryList && (
+          <StoryList
+            myNickname={myNickname}
+            myUserId={myUserId}
+            myBio={myBio}
+            myAvatarSource={myAvatarSource}
+            friends={friends}
+            selectedUser={selectedUser}
+            onSelectStory={onSelectStory}
           />
-        </View>
-      ) : null}
-    </View>
+        )}
+
+        {showUserCard && selectedUser ? (
+          <View style={styles.userCardWrapper}>
+            <UserCard
+              variant="story"
+              profileImage={selectedProfileImage}
+              nickname={selectedNickname}
+              userid={selectedUserId}
+              bio={selectedBio}
+              friendAvatars={selectedFriendAvatars}
+              friendCount={selectedFriendCount}
+              isMyCard={isMySelectedCard}
+              onPressEditProfile={handlePressEditProfile}
+              onPressBlock={handlePressBlock}
+              onPressReport={handlePressReport}
+            />
+          </View>
+        ) : null}
+      </View>
+      <ReportModal
+        visible={reportModalVisible}
+        onClose={() => setReportModalVisible(false)}
+        onSubmit={handleSubmitReport}
+      />
+    </>
   );
 };
 

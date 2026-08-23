@@ -168,6 +168,14 @@ export async function blockFriend(friend_id: number) {
   return res.data;
 }
 
+export async function reportFriend(
+  friend_id: number,
+  payload: { reason: string; detail: string },
+) {
+  const res = await api8001.post(`/friends/report/${friend_id}`, payload);
+  return res.data;
+}
+
 export async function unblockFriend(friend_id: number) {
   const res = await api8001.post(`/friends/unblock/${friend_id}`);
   return res.data;
