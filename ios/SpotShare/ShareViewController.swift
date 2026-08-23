@@ -13,6 +13,7 @@ final class ShareViewController: UIViewController {
   private let baseURL = "http://3.34.94.184:8001"
   private let eligibilityPath = "/extract/eligibility"
   private let analyzePath = "/analyze"
+  private let inquiriesPath = "/inquiries"
 
   // 디버그 모드
   private let debugMode = false
@@ -28,6 +29,31 @@ final class ShareViewController: UIViewController {
   private let titleLabel = UILabel()
   private let subtitleLabel = UILabel()
   private let actionButton = UIButton(type: .system)
+  private let inquiryLinkButton = UIButton(type: .system)
+  private var baseHeightConstraint: NSLayoutConstraint?
+
+  // 문의하기 UI
+  private let inquiryMaxLength = 500
+  private let inquiryContainer = UIView()
+  private let inquiryGrabber = UIView()
+  private let inquiryCloseButton = UIButton(type: .system)
+  private let inquiryBackButton = UIButton(type: .system)
+  private let inquiryTitleLabel = UILabel()
+  private let inquirySubtitleLabel = UILabel()
+  private let inquiryInputBox = UIView()
+  private let inquiryTextView = UITextView()
+  private let inquiryPlaceholderLabel = UILabel()
+  private let inquiryCounterLabel = UILabel()
+  private let inquirySubmitButton = UIButton(type: .system)
+  private let inquirySpinner = UIActivityIndicatorView(style: .medium)
+  private let inquiryDoneLabel = UILabel()
+  private let inquiryNewButton = UIButton(type: .system)
+  private var inquiryHeightConstraint: NSLayoutConstraint?
+  private var inquiryInputBottomConstraint: NSLayoutConstraint?
+  private var isSubmittingInquiry = false
+
+  /// 문의(extract)의 ref_url 로 전달할 공유 게시물 URL
+  private var sharedURLString: String?
 
   override func viewDidLoad() {
     super.viewDidLoad()
@@ -46,6 +72,7 @@ final class ShareViewController: UIViewController {
       }
 
       NSLog("[SpotShare] ✅ URL: \(urlString)")
+      self.sharedURLString = urlString
 
       let token = self.readToken()
       if token.isEmpty {
@@ -86,19 +113,33 @@ final class ShareViewController: UIViewController {
     actionButton.setTitleColor(UIColor(red: 0.52, green: 0.52, blue: 0.52, alpha: 1), for: .normal)
     actionButton.addTarget(self, action: #selector(onTapButton), for: .touchUpInside)
 
+    inquiryLinkButton.setAttributedTitle(inquiryLinkAttributedTitle(), for: .normal)
+    inquiryLinkButton.isHidden = true
+    inquiryLinkButton.addTarget(self, action: #selector(onTapInquiryLink), for: .touchUpInside)
+
     sheetView.translatesAutoresizingMaskIntoConstraints = false
     view.addSubview(sheetView)
 
-    [iconView, titleLabel, subtitleLabel, actionButton].forEach {
+    [iconView, titleLabel, subtitleLabel, actionButton, inquiryLinkButton].forEach {
       $0.translatesAutoresizingMaskIntoConstraints = false
       sheetView.addSubview($0)
     }
+
+    let baseHeight = sheetView.heightAnchor.constraint(
+      equalTo: view.heightAnchor,
+      multiplier: 0.615
+    )
+    baseHeightConstraint = baseHeight
 
     NSLayoutConstraint.activate([
       sheetView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
       sheetView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
       sheetView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
-      sheetView.heightAnchor.constraint(equalTo: view.heightAnchor, multiplier: 0.615),
+      baseHeight,
+
+      inquiryLinkButton.centerXAnchor.constraint(equalTo: sheetView.centerXAnchor),
+      inquiryLinkButton.bottomAnchor.constraint(equalTo: sheetView.bottomAnchor, constant: -24),
+      inquiryLinkButton.heightAnchor.constraint(equalToConstant: 32),
 
       iconView.centerXAnchor.constraint(equalTo: sheetView.centerXAnchor),
       iconView.topAnchor.constraint(equalTo: sheetView.topAnchor, constant: 106),
@@ -118,6 +159,7 @@ final class ShareViewController: UIViewController {
       actionButton.heightAnchor.constraint(equalToConstant: 44)
     ])
 
+    setupInquiryUI()
     showLoadingUI()
   }
 
@@ -137,6 +179,7 @@ final class ShareViewController: UIViewController {
       self.subtitleLabel.text = "게시물 속 장소를 저장 중이에요"
       self.actionButton.setTitle("닫기", for: .normal)
       self.actionButton.isHidden = false
+      self.inquiryLinkButton.isHidden = true
     }
   }
 
@@ -149,6 +192,7 @@ final class ShareViewController: UIViewController {
       self.subtitleLabel.text = "주소가 없거나 인식이 어려운 게시물은\n저장이 불가능해요"
       self.actionButton.setTitle("닫기", for: .normal)
       self.actionButton.isHidden = false
+      self.inquiryLinkButton.isHidden = false
     }
   }
 
@@ -588,7 +632,8 @@ final class ShareViewController: UIViewController {
       }
 
       if status >= 200 && status < 300 {
-        self.saveLatestResult(raw)
+        // 앱에서 문의(extract)의 ref_url 로 쓸 수 있도록 원본 게시물 URL을 함께 저장한다.
+        self.saveLatestResult(self.injectSourceURL(into: raw, url: url))
 
         self.showLoadingUI()
 
@@ -615,6 +660,26 @@ final class ShareViewController: UIViewController {
     }.resume()
   }
 
+  private func injectSourceURL(into raw: String, url: String) -> String {
+    guard
+      let data = raw.data(using: .utf8),
+      var json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+    else {
+      return raw
+    }
+
+    json["source_url"] = url
+
+    guard
+      let merged = try? JSONSerialization.data(withJSONObject: json),
+      let mergedString = String(data: merged, encoding: .utf8)
+    else {
+      return raw
+    }
+
+    return mergedString
+  }
+
   private struct EligibilityResponse {
     let needAd: Bool
     let ticketId: String
@@ -632,5 +697,424 @@ final class ShareViewController: UIViewController {
     let ticketId = json["ticket_id"] as? String ?? ""
 
     return EligibilityResponse(needAd: needAd, ticketId: ticketId)
+  }
+
+  // MARK: - Inquiry UI
+
+  private var inquiryGray800: UIColor { UIColor(red: 0.149, green: 0.149, blue: 0.149, alpha: 1) }
+  private var inquiryGray300: UIColor { UIColor(red: 0.6, green: 0.6, blue: 0.6, alpha: 1) }
+  private var inquiryGray100: UIColor { UIColor(red: 0.902, green: 0.902, blue: 0.902, alpha: 1) }
+  private var inquiryInputBackground: UIColor { UIColor(red: 0.961, green: 0.961, blue: 0.961, alpha: 1) }
+
+  private func inquiryLinkAttributedTitle() -> NSAttributedString {
+    let title = NSMutableAttributedString(
+      string: "문제가 있나요? ",
+      attributes: [
+        .font: UIFont.systemFont(ofSize: 13, weight: .medium),
+        .foregroundColor: inquiryGray300
+      ]
+    )
+
+    title.append(NSAttributedString(
+      string: "문의하기",
+      attributes: [
+        .font: UIFont.systemFont(ofSize: 13, weight: .medium),
+        .foregroundColor: inquiryGray300,
+        .underlineStyle: NSUnderlineStyle.single.rawValue
+      ]
+    ))
+
+    return title
+  }
+
+  private func inquiryCounterAttributedText(_ length: Int) -> NSAttributedString {
+    let text = NSMutableAttributedString(
+      string: "\(length)",
+      attributes: [
+        .font: UIFont.systemFont(ofSize: 12, weight: .medium),
+        .foregroundColor: inquiryGray800
+      ]
+    )
+
+    text.append(NSAttributedString(
+      string: "/\(inquiryMaxLength)",
+      attributes: [
+        .font: UIFont.systemFont(ofSize: 12, weight: .medium),
+        .foregroundColor: inquiryGray300
+      ]
+    ))
+
+    return text
+  }
+
+  private func setupInquiryUI() {
+    inquiryContainer.isHidden = true
+    inquiryContainer.backgroundColor = .white
+
+    inquiryGrabber.backgroundColor = UIColor(red: 0.85, green: 0.85, blue: 0.85, alpha: 1)
+    inquiryGrabber.layer.cornerRadius = 2
+
+    inquiryCloseButton.backgroundColor = inquiryGray100
+    inquiryCloseButton.layer.cornerRadius = 16
+    inquiryCloseButton.tintColor = inquiryGray300
+    inquiryCloseButton.setImage(UIImage(systemName: "xmark"), for: .normal)
+    inquiryCloseButton.addTarget(self, action: #selector(onTapInquiryClose), for: .touchUpInside)
+
+    inquiryBackButton.tintColor = inquiryGray300
+    inquiryBackButton.setImage(UIImage(systemName: "chevron.left"), for: .normal)
+    inquiryBackButton.addTarget(self, action: #selector(onTapInquiryBack), for: .touchUpInside)
+
+    inquiryTitleLabel.text = "문의하기"
+    inquiryTitleLabel.textAlignment = .center
+    inquiryTitleLabel.font = .systemFont(ofSize: 17, weight: .bold)
+    inquiryTitleLabel.textColor = inquiryGray800
+
+    inquirySubtitleLabel.text = "2~3영업일 이내에 이메일로 답변드려요"
+    inquirySubtitleLabel.textAlignment = .center
+    inquirySubtitleLabel.font = .systemFont(ofSize: 13, weight: .regular)
+    inquirySubtitleLabel.textColor = inquiryGray300
+
+    inquiryInputBox.backgroundColor = inquiryInputBackground
+    inquiryInputBox.layer.cornerRadius = 12
+
+    inquiryTextView.backgroundColor = .clear
+    inquiryTextView.font = .systemFont(ofSize: 14, weight: .medium)
+    inquiryTextView.textColor = inquiryGray800
+    inquiryTextView.textContainerInset = UIEdgeInsets(top: 16, left: 12, bottom: 8, right: 12)
+    inquiryTextView.delegate = self
+
+    inquiryPlaceholderLabel.text = "문의하실 내용을 작성해주세요"
+    inquiryPlaceholderLabel.font = .systemFont(ofSize: 14, weight: .medium)
+    inquiryPlaceholderLabel.textColor = inquiryGray300
+
+    inquiryCounterLabel.attributedText = inquiryCounterAttributedText(0)
+    inquiryCounterLabel.textAlignment = .right
+
+    inquirySubmitButton.backgroundColor = inquiryGray800
+    inquirySubmitButton.layer.cornerRadius = 10
+    inquirySubmitButton.setTitle("접수하기", for: .normal)
+    inquirySubmitButton.setTitleColor(.white, for: .normal)
+    inquirySubmitButton.titleLabel?.font = .systemFont(ofSize: 16, weight: .bold)
+    inquirySubmitButton.addTarget(self, action: #selector(onTapInquirySubmit), for: .touchUpInside)
+
+    inquirySpinner.color = .white
+    inquirySpinner.hidesWhenStopped = true
+
+    inquiryDoneLabel.text = "문의 접수가 완료되었습니다!"
+    inquiryDoneLabel.textAlignment = .center
+    inquiryDoneLabel.font = .systemFont(ofSize: 17, weight: .bold)
+    inquiryDoneLabel.textColor = inquiryGray800
+    inquiryDoneLabel.isHidden = true
+
+    inquiryNewButton.backgroundColor = inquiryGray800
+    inquiryNewButton.layer.cornerRadius = 10
+    inquiryNewButton.setTitle("새 문의 작성", for: .normal)
+    inquiryNewButton.setTitleColor(.white, for: .normal)
+    inquiryNewButton.titleLabel?.font = .systemFont(ofSize: 14, weight: .bold)
+    inquiryNewButton.isHidden = true
+    inquiryNewButton.addTarget(self, action: #selector(onTapInquiryNew), for: .touchUpInside)
+
+    inquiryContainer.translatesAutoresizingMaskIntoConstraints = false
+    sheetView.addSubview(inquiryContainer)
+
+    [
+      inquiryGrabber, inquiryCloseButton, inquiryBackButton, inquiryTitleLabel,
+      inquirySubtitleLabel, inquiryInputBox, inquirySubmitButton,
+      inquiryDoneLabel, inquiryNewButton
+    ].forEach {
+      $0.translatesAutoresizingMaskIntoConstraints = false
+      inquiryContainer.addSubview($0)
+    }
+
+    [inquiryTextView, inquiryPlaceholderLabel, inquiryCounterLabel].forEach {
+      $0.translatesAutoresizingMaskIntoConstraints = false
+      inquiryInputBox.addSubview($0)
+    }
+
+    inquirySpinner.translatesAutoresizingMaskIntoConstraints = false
+    inquirySubmitButton.addSubview(inquirySpinner)
+
+    let inputBottom = inquiryInputBox.bottomAnchor.constraint(
+      equalTo: inquiryContainer.bottomAnchor,
+      constant: -88
+    )
+    inquiryInputBottomConstraint = inputBottom
+
+    // 최소 높이 200 (키패드 제약과 충돌해도 깨지지 않도록 필수 제약보다 낮은 우선순위)
+    let inputMinHeight = inquiryInputBox.heightAnchor.constraint(greaterThanOrEqualToConstant: 200)
+    inputMinHeight.priority = .defaultHigh
+    inputMinHeight.isActive = true
+
+    NSLayoutConstraint.activate([
+      inquiryContainer.topAnchor.constraint(equalTo: sheetView.topAnchor),
+      inquiryContainer.leadingAnchor.constraint(equalTo: sheetView.leadingAnchor),
+      inquiryContainer.trailingAnchor.constraint(equalTo: sheetView.trailingAnchor),
+      inquiryContainer.bottomAnchor.constraint(equalTo: sheetView.bottomAnchor),
+
+      inquiryGrabber.topAnchor.constraint(equalTo: inquiryContainer.topAnchor, constant: 10),
+      inquiryGrabber.centerXAnchor.constraint(equalTo: inquiryContainer.centerXAnchor),
+      inquiryGrabber.widthAnchor.constraint(equalToConstant: 36),
+      inquiryGrabber.heightAnchor.constraint(equalToConstant: 4),
+
+      inquiryCloseButton.topAnchor.constraint(equalTo: inquiryContainer.topAnchor, constant: 16),
+      inquiryCloseButton.trailingAnchor.constraint(equalTo: inquiryContainer.trailingAnchor, constant: -16),
+      inquiryCloseButton.widthAnchor.constraint(equalToConstant: 32),
+      inquiryCloseButton.heightAnchor.constraint(equalToConstant: 32),
+
+      inquiryTitleLabel.topAnchor.constraint(equalTo: inquiryCloseButton.bottomAnchor, constant: 8),
+      inquiryTitleLabel.centerXAnchor.constraint(equalTo: inquiryContainer.centerXAnchor),
+
+      inquiryBackButton.centerYAnchor.constraint(equalTo: inquiryTitleLabel.centerYAnchor),
+      inquiryBackButton.leadingAnchor.constraint(equalTo: inquiryContainer.leadingAnchor, constant: 16),
+      inquiryBackButton.widthAnchor.constraint(equalToConstant: 40),
+      inquiryBackButton.heightAnchor.constraint(equalToConstant: 40),
+
+      inquirySubtitleLabel.topAnchor.constraint(equalTo: inquiryTitleLabel.bottomAnchor, constant: 4),
+      inquirySubtitleLabel.leadingAnchor.constraint(equalTo: inquiryContainer.leadingAnchor, constant: 56),
+      inquirySubtitleLabel.trailingAnchor.constraint(equalTo: inquiryContainer.trailingAnchor, constant: -56),
+
+      inquiryInputBox.topAnchor.constraint(equalTo: inquirySubtitleLabel.bottomAnchor, constant: 20),
+      inquiryInputBox.leadingAnchor.constraint(equalTo: inquiryContainer.leadingAnchor, constant: 16),
+      inquiryInputBox.trailingAnchor.constraint(equalTo: inquiryContainer.trailingAnchor, constant: -16),
+      inputBottom,
+
+      inquiryTextView.topAnchor.constraint(equalTo: inquiryInputBox.topAnchor),
+      inquiryTextView.leadingAnchor.constraint(equalTo: inquiryInputBox.leadingAnchor, constant: 4),
+      inquiryTextView.trailingAnchor.constraint(equalTo: inquiryInputBox.trailingAnchor, constant: -4),
+      inquiryTextView.bottomAnchor.constraint(equalTo: inquiryCounterLabel.topAnchor, constant: -4),
+
+      inquiryPlaceholderLabel.topAnchor.constraint(equalTo: inquiryTextView.topAnchor, constant: 16),
+      inquiryPlaceholderLabel.leadingAnchor.constraint(equalTo: inquiryTextView.leadingAnchor, constant: 16),
+
+      inquiryCounterLabel.trailingAnchor.constraint(equalTo: inquiryInputBox.trailingAnchor, constant: -16),
+      inquiryCounterLabel.bottomAnchor.constraint(equalTo: inquiryInputBox.bottomAnchor, constant: -12),
+
+      inquirySubmitButton.topAnchor.constraint(equalTo: inquiryInputBox.bottomAnchor, constant: 16),
+      inquirySubmitButton.leadingAnchor.constraint(equalTo: inquiryContainer.leadingAnchor, constant: 16),
+      inquirySubmitButton.trailingAnchor.constraint(equalTo: inquiryContainer.trailingAnchor, constant: -16),
+      inquirySubmitButton.heightAnchor.constraint(equalToConstant: 48),
+
+      inquirySpinner.centerXAnchor.constraint(equalTo: inquirySubmitButton.centerXAnchor),
+      inquirySpinner.centerYAnchor.constraint(equalTo: inquirySubmitButton.centerYAnchor),
+
+      inquiryDoneLabel.centerXAnchor.constraint(equalTo: inquiryContainer.centerXAnchor),
+      inquiryDoneLabel.centerYAnchor.constraint(equalTo: inquiryContainer.centerYAnchor, constant: -20),
+
+      inquiryNewButton.topAnchor.constraint(equalTo: inquiryDoneLabel.bottomAnchor, constant: 24),
+      inquiryNewButton.centerXAnchor.constraint(equalTo: inquiryContainer.centerXAnchor),
+      inquiryNewButton.heightAnchor.constraint(equalToConstant: 40),
+      inquiryNewButton.widthAnchor.constraint(equalToConstant: 141)
+    ])
+
+    let tap = UITapGestureRecognizer(target: self, action: #selector(onTapInquiryBackground))
+    tap.cancelsTouchesInView = false
+    inquiryContainer.addGestureRecognizer(tap)
+
+    NotificationCenter.default.addObserver(
+      self,
+      selector: #selector(onKeyboardWillShow(_:)),
+      name: UIResponder.keyboardWillShowNotification,
+      object: nil
+    )
+    NotificationCenter.default.addObserver(
+      self,
+      selector: #selector(onKeyboardWillHide(_:)),
+      name: UIResponder.keyboardWillHideNotification,
+      object: nil
+    )
+  }
+
+  // MARK: - Inquiry Actions
+
+  @objc private func onTapInquiryLink() {
+    showInquiryUI()
+  }
+
+  @objc private func onTapInquiryBack() {
+    hideInquiryUI()
+  }
+
+  @objc private func onTapInquiryClose() {
+    inquiryTextView.resignFirstResponder()
+    extensionContext?.completeRequest(returningItems: nil, completionHandler: nil)
+  }
+
+  @objc private func onTapInquiryBackground() {
+    inquiryTextView.resignFirstResponder()
+  }
+
+  @objc private func onTapInquiryNew() {
+    inquiryTextView.text = ""
+    inquiryPlaceholderLabel.isHidden = false
+    inquiryCounterLabel.attributedText = inquiryCounterAttributedText(0)
+    showInquiryForm()
+  }
+
+  private func showInquiryUI() {
+    [iconView, titleLabel, subtitleLabel, actionButton, inquiryLinkButton].forEach {
+      $0.isHidden = true
+    }
+
+    iconView.stopAnimating()
+    inquiryContainer.isHidden = false
+    showInquiryForm()
+
+    baseHeightConstraint?.isActive = false
+
+    let height = inquiryHeightConstraint ?? sheetView.heightAnchor.constraint(
+      equalToConstant: view.bounds.height * 0.615
+    )
+    inquiryHeightConstraint = height
+    height.constant = view.bounds.height * 0.615
+    height.isActive = true
+
+    view.layoutIfNeeded()
+  }
+
+  private func hideInquiryUI() {
+    inquiryTextView.resignFirstResponder()
+    inquiryContainer.isHidden = true
+
+    inquiryHeightConstraint?.isActive = false
+    baseHeightConstraint?.isActive = true
+
+    showFailureUI()
+    view.layoutIfNeeded()
+  }
+
+  private func showInquiryForm() {
+    inquiryInputBox.isHidden = false
+    inquirySubmitButton.isHidden = false
+    inquiryDoneLabel.isHidden = true
+    inquiryNewButton.isHidden = true
+  }
+
+  private func showInquiryDone() {
+    inquiryTextView.resignFirstResponder()
+    inquiryInputBox.isHidden = true
+    inquirySubmitButton.isHidden = true
+    inquiryDoneLabel.isHidden = false
+    inquiryNewButton.isHidden = false
+  }
+
+  private func setInquirySubmitting(_ submitting: Bool) {
+    isSubmittingInquiry = submitting
+    inquirySubmitButton.isEnabled = !submitting
+    inquirySubmitButton.setTitle(submitting ? "" : "접수하기", for: .normal)
+
+    if submitting {
+      inquirySpinner.startAnimating()
+    } else {
+      inquirySpinner.stopAnimating()
+    }
+  }
+
+  private func showInquiryAlert(_ message: String) {
+    let alert = UIAlertController(title: "문의 접수 실패", message: message, preferredStyle: .alert)
+    alert.addAction(UIAlertAction(title: "확인", style: .default))
+    present(alert, animated: true)
+  }
+
+  // MARK: - Inquiry Keyboard
+
+  @objc private func onKeyboardWillShow(_ notification: Notification) {
+    guard !inquiryContainer.isHidden else { return }
+
+    guard
+      let frame = notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect
+    else { return }
+
+    // 디자인상 접수하기 버튼은 키패드에 가려지고, 입력 박스만 키패드 위로 보인다.
+    inquiryHeightConstraint?.constant = view.bounds.height * 0.78
+    inquiryInputBottomConstraint?.constant = -(frame.height + 12)
+
+    UIView.animate(withDuration: 0.25) { self.view.layoutIfNeeded() }
+  }
+
+  @objc private func onKeyboardWillHide(_ notification: Notification) {
+    guard !inquiryContainer.isHidden else { return }
+
+    inquiryHeightConstraint?.constant = view.bounds.height * 0.615
+    inquiryInputBottomConstraint?.constant = -88
+
+    UIView.animate(withDuration: 0.25) { self.view.layoutIfNeeded() }
+  }
+
+  // MARK: - Inquiry API
+
+  @objc private func onTapInquirySubmit() {
+    let content = inquiryTextView.text.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !content.isEmpty, !isSubmittingInquiry else { return }
+
+    let token = readToken().trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !token.isEmpty else {
+      showInquiryAlert("로그인 후 이용할 수 있어요.")
+      return
+    }
+
+    guard let reqURL = URL(string: baseURL + inquiriesPath) else {
+      showInquiryAlert("잠시 후 다시 시도해 주세요.")
+      return
+    }
+
+    inquiryTextView.resignFirstResponder()
+    setInquirySubmitting(true)
+
+    var request = URLRequest(url: reqURL)
+    request.httpMethod = "POST"
+    request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+    request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+
+    var body: [String: Any] = ["category": "extract", "content": content]
+    if let sharedURLString, !sharedURLString.isEmpty {
+      body["ref_url"] = sharedURLString
+    }
+    request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+
+    URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
+      guard let self else { return }
+
+      let status = (response as? HTTPURLResponse)?.statusCode ?? -1
+      NSLog("[SpotShare] inquiry status=\(status)")
+
+      DispatchQueue.main.async {
+        self.setInquirySubmitting(false)
+
+        if let error {
+          NSLog("[SpotShare] ❌ inquiry ERROR \(error.localizedDescription)")
+          self.showInquiryAlert("잠시 후 다시 시도해 주세요.")
+          return
+        }
+
+        guard status >= 200 && status < 300 else {
+          let raw = String(data: data ?? Data(), encoding: .utf8) ?? ""
+          NSLog("[SpotShare] ❌ inquiry body=\(raw)")
+          self.showInquiryAlert("잠시 후 다시 시도해 주세요.")
+          return
+        }
+
+        self.showInquiryDone()
+      }
+    }.resume()
+  }
+}
+
+// MARK: - UITextViewDelegate
+
+extension ShareViewController: UITextViewDelegate {
+  func textViewDidChange(_ textView: UITextView) {
+    inquiryPlaceholderLabel.isHidden = !textView.text.isEmpty
+    inquiryCounterLabel.attributedText = inquiryCounterAttributedText(textView.text.count)
+  }
+
+  func textView(
+    _ textView: UITextView,
+    shouldChangeTextIn range: NSRange,
+    replacementText text: String
+  ) -> Bool {
+    let current = textView.text as NSString
+    let updated = current.replacingCharacters(in: range, with: text)
+
+    return updated.count <= inquiryMaxLength
   }
 }

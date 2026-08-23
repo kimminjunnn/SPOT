@@ -49,6 +49,10 @@ import { openNaverMap } from "@/src/utils/openNaverMap";
 import { calculateDistanceMeters } from "@/src/utils/distance";
 import { CommentCard } from "@/src/components/comment/CommentCard";
 import SavedInfoCard from "@/src/components/place/SavedInfoCard";
+import InquiryBottomSheet, {
+  type InquiryBottomSheetRef,
+} from "@/src/components/inquiry/InquiryBottomSheet";
+import InquiryLink from "@/src/components/inquiry/InquiryLink";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
@@ -112,6 +116,7 @@ export default function PlaceDetailScreen() {
 
   const flatListRef = useRef<FlatList>(null);
   const commentModalRef = useRef<CommentWriteModalRef>(null);
+  const inquiryRef = useRef<InquiryBottomSheetRef>(null);
 
   const fallbackImages = useMemo(
     () => [require("@/assets/images/default-place.png")],
@@ -464,12 +469,23 @@ export default function PlaceDetailScreen() {
 
         <SavedInfoCard savers={display.savers} />
 
+        <InquiryLink
+          onPress={() => inquiryRef.current?.open()}
+          style={styles.inquiryLink}
+        />
+
         {/* <View style={styles.commentSectionHeader}>
           <Text style={styles.commentText}>코멘트</Text>
           <Text style={styles.commentCount}> {comments.length}</Text>
         </View>
         <CommentCard commentList={comments} /> */}
       </ScrollView>
+
+      <InquiryBottomSheet
+        ref={inquiryRef}
+        category="detail"
+        refUrl={String(placeId)}
+      />
 
       {/* <CommentWriteButton onPress={handleOpenCommentSheet} />
       <CommentWriteModal ref={commentModalRef} placeId={Number(placeId)} /> */}
@@ -553,6 +569,10 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+  },
+  inquiryLink: {
+    paddingTop: 12,
+    paddingBottom: 20,
   },
   commentSectionHeader: {
     display: "flex",

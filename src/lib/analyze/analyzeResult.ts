@@ -14,6 +14,8 @@ export type AnalyzeApiResult = {
 
 export type AnalyzeApiResponse = {
   status?: "OK" | typeof ANALYZE_AD_REQUIRED_STATUS | string;
+  /** 공유 익스텐션이 함께 저장하는 원본 게시물 URL */
+  source_url?: string;
   code?: string;
   extractScore?: number;
   threshold?: number;

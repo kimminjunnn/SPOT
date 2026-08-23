@@ -24,11 +24,13 @@ async function consumeAnalyzeResults() {
       if (!json) break;
 
       try {
-        const items = mapAnalyzeResponseToItems(parseAnalyzeJson(json));
+        const parsed = parseAnalyzeJson(json);
+        const items = mapAnalyzeResponseToItems(parsed);
 
         if (items.length > 0) {
           useAnalyzeResultStore.getState().openWithPlaces(items, {
             receivedAt: Date.now(),
+            sourceUrl: parsed.source_url,
           });
         }
       } catch (error) {

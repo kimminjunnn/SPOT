@@ -18,6 +18,9 @@ import SearchDetailBottomSheet from "@/src/components/bottomSheet/SearchDetailBo
 import SearchDetailsBottomSheet from "@/src/components/bottomSheet/SearchDetailsBottomSheet";
 import UserLocationMarker from "@/src/components/map/UserLocationMarker";
 import ConfirmModal from "@/src/components/common/ConfirmModal";
+import InquiryBottomSheet, {
+  type InquiryBottomSheetRef,
+} from "@/src/components/inquiry/InquiryBottomSheet";
 
 import { useAnalyzeResultStore } from "@/src/stores/useAnalyzeResultStore";
 import { useAuthStore } from "@/src/stores/useAuthStore";
@@ -36,6 +39,7 @@ import { useLoadSavedPlacesOnFocus } from "@/src/hooks/map/useLoadSavedPlacesOnF
 import { getRoundedCoords } from "@/src/utils/coords";
 export default function Map() {
   const mapRef = useRef<NaverMapViewRef>(null);
+  const inquiryRef = useRef<InquiryBottomSheetRef>(null);
 
   const [selectedPlaceId, setSelectedPlaceId] = useState<number | null>(null);
 
@@ -325,6 +329,7 @@ export default function Map() {
             updateAnalyzeSelection(analyzeCurrent.id, ids)
           }
           onConfirm={handleConfirmSavedPlaces}
+          onPressInquiry={() => inquiryRef.current?.open()}
         />
       ) : (
         <>
@@ -351,6 +356,12 @@ export default function Map() {
           )}
         </>
       )}
+
+      <InquiryBottomSheet
+        ref={inquiryRef}
+        category="extract"
+        refUrl={analyzeCurrent?.meta.sourceUrl}
+      />
 
       <ConfirmModal
         visible={closeAnalyzeConfirmVisible}

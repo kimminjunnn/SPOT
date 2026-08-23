@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Colors } from "@/src/styles/Colors";
 import { TextStyles } from "@/src/styles/TextStyles";
+import InquiryLink from "@/src/components/inquiry/InquiryLink";
 
 export type SavePlaceItem = {
   id: string;
@@ -36,9 +37,10 @@ type Props = {
   onClose: () => void;
   onChangeSelection: (ids: string[]) => void;
   onConfirm?: () => void;
+  onPressInquiry?: () => void;
 };
 
-const FOOTER_HEIGHT = 84;
+const FOOTER_HEIGHT = 116;
 
 function SavePlacesBottomSheet({
   places,
@@ -52,6 +54,7 @@ function SavePlacesBottomSheet({
   onClose,
   onChangeSelection,
   onConfirm,
+  onPressInquiry,
 }: Props) {
   const sheetRef = useRef<BottomSheet>(null);
   const insets = useSafeAreaInsets();
@@ -124,10 +127,12 @@ function SavePlacesBottomSheet({
                 : `장소 ${totalSelectedCount}곳 저장하기`}
             </Text>
           </Pressable>
+
+          {onPressInquiry ? <InquiryLink onPress={onPressInquiry} /> : null}
         </View>
       </BottomSheetFooter>
     ),
-    [handleConfirm, saving, totalSelectedCount],
+    [handleConfirm, onPressInquiry, saving, totalSelectedCount],
   );
 
   return (

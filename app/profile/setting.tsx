@@ -34,6 +34,20 @@ type AppStoreLookupResponse = {
 const CURRENT_VERSION =
   Constants.nativeAppVersion ?? Constants.expoConfig?.version ?? "-";
 
+const TERMS_URL =
+  "https://confusion-toy-a06.notion.site/3b6cb581691b80328caac65e49336103";
+const PRIVACY_POLICY_URL =
+  "https://confusion-toy-a06.notion.site/3b6cb581691b80c8b499e6e5d279fdea";
+
+async function openPolicyPage(url: string) {
+  try {
+    await Linking.openURL(url);
+  } catch (error) {
+    console.warn("[Settings] Failed to open policy page:", error);
+    Alert.alert("페이지를 열 수 없어요", "잠시 후 다시 시도해 주세요.");
+  }
+}
+
 function compareVersions(left: string, right: string) {
   const leftParts = left.split(".").map((part) => Number.parseInt(part, 10) || 0);
   const rightParts = right
@@ -307,7 +321,8 @@ export default function SettingScreen() {
           <View style={styles.subContainer}>
             <Pressable
               style={styles.subRow}
-              // onPress={() => router.push("/profile/terms")}
+              onPress={() => void openPolicyPage(TERMS_URL)}
+              accessibilityRole="link"
             >
               <Text style={styles.subText}>• 이용약관</Text>
               <Image
@@ -318,7 +333,8 @@ export default function SettingScreen() {
 
             <Pressable
               style={styles.subRow}
-              // onPress={() => router.push("/profile/privacy")}
+              onPress={() => void openPolicyPage(PRIVACY_POLICY_URL)}
+              accessibilityRole="link"
             >
               <Text style={styles.subText}>• 개인정보 정책</Text>
               <Image
@@ -332,7 +348,7 @@ export default function SettingScreen() {
         {/* 문의 */}
         <Pressable
           style={styles.row}
-          // onPress={() => router.push("/profile/contact")}
+          onPress={() => router.push("/profile/contact")}
         >
           <Text style={styles.rowText}>문의</Text>
           <Image
