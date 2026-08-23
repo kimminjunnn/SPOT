@@ -1,16 +1,16 @@
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   Keyboard,
-  KeyboardAvoidingView,
-  Platform,
   Pressable,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from "react-native";
+import { router } from "expo-router";
+import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 
 import ProfileLayout from "@/src/components/profile/Layout";
 import ProfileHeader from "@/src/components/profile/Header";
@@ -21,6 +21,7 @@ import { TextStyles } from "@/src/styles/TextStyles";
 const MAX_LENGTH = 500;
 
 export default function ContactScreen() {
+  const inputRef = useRef<TextInput>(null);
   const [content, setContent] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
@@ -28,10 +29,19 @@ export default function ContactScreen() {
   const trimmed = content.trim();
   const isSubmitDisabled = trimmed.length === 0 || isSubmitting;
 
+  const dismissKeyboard = useCallback(() => {
+    // 실기기에서는 Keyboard.dismiss()만으로 multiline TextInput의 포커스가
+    // 남는 경우가 있어, 입력 포커스도 함께 명시적으로 해제한다.
+    inputRef.current?.blur();
+    Keyboard.dismiss();
+  }, []);
+
+  useEffect(() => dismissKeyboard, [dismissKeyboard]);
+
   const handleSubmit = async () => {
     if (isSubmitDisabled) return;
 
-    Keyboard.dismiss();
+    dismissKeyboard();
     setIsSubmitting(true);
 
     try {
@@ -49,14 +59,20 @@ export default function ContactScreen() {
   };
 
   const handleWriteNewInquiry = () => {
+    dismissKeyboard();
     setContent("");
     setIsSubmitted(false);
+  };
+
+  const handleBack = () => {
+    dismissKeyboard();
+    router.back();
   };
 
   return (
     <ProfileLayout>
       {/* 헤더 */}
-      <ProfileHeader title="문의하기" showBack={true} />
+      <ProfileHeader title="문의하기" showBack={true} onBack={handleBack} />
 
       {isSubmitted ? (
         /* 접수 완료 */
@@ -73,12 +89,17 @@ export default function ContactScreen() {
         </View>
       ) : (
         /* 문의 작성 */
-        <KeyboardAvoidingView
+        <KeyboardAwareScrollView
           style={styles.formContainer}
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          contentContainerStyle={styles.formContent}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          enableOnAndroid
+          extraScrollHeight={24}
         >
           <View style={styles.inputBox}>
             <TextInput
+              ref={inputRef}
               style={styles.input}
               value={content}
               onChangeText={setContent}
@@ -115,7 +136,7 @@ export default function ContactScreen() {
               <Text style={styles.submitButtonText}>접수하기</Text>
             )}
           </Pressable>
-        </KeyboardAvoidingView>
+        </KeyboardAwareScrollView>
       )}
     </ProfileLayout>
   );
@@ -124,6 +145,9 @@ export default function ContactScreen() {
 const styles = StyleSheet.create({
   formContainer: {
     flex: 1,
+  },
+  formContent: {
+    flexGrow: 1,
   },
   inputBox: {
     height: 365,

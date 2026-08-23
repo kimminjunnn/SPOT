@@ -8,12 +8,15 @@ import { TextStyles } from "@/src/styles/TextStyles";
 type ProfileHeaderProps = {
   title: string;
   showBack?: boolean;
+  /** 기본 뒤로가기 대신 실행할 동작 */
+  onBack?: () => void;
   right?: React.ReactNode; // 우측 버튼(옵션)
 };
 
 export default function ProfileHeader({
   title,
   showBack = true,
+  onBack,
   right,
 }: ProfileHeaderProps) {
   return (
@@ -22,7 +25,7 @@ export default function ProfileHeader({
       {showBack ? (
         <Pressable
           style={styles.left}
-          onPress={() => router.back()}
+          onPress={onBack ?? (() => router.back())}
           hitSlop={10}
         >
           <Image
