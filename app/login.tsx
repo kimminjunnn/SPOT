@@ -3,6 +3,7 @@ import * as Linking from "expo-linking";
 import { router, useLocalSearchParams } from "expo-router";
 import {
   Image,
+  Linking as NativeLinking,
   StyleSheet,
   View,
   Text,
@@ -16,6 +17,10 @@ const { SharedStore } = NativeModules;
 
 const KAKAO_REST_API_KEY = process.env.EXPO_PUBLIC_KAKAO_REST_API_KEY!;
 const KAKAO_REDIRECT_URI = process.env.EXPO_PUBLIC_KAKAO_REDIRECT_URI!;
+const TERMS_URL =
+  "https://confusion-toy-a06.notion.site/3b6cb581691b80328caac65e49336103";
+const PRIVACY_POLICY_URL =
+  "https://confusion-toy-a06.notion.site/3b6cb581691b80c8b499e6e5d279fdea";
 
 const authUrl = `https://kauth.kakao.com/oauth/authorize?response_type=code&client_id=${KAKAO_REST_API_KEY}&redirect_uri=${encodeURIComponent(
   KAKAO_REDIRECT_URI,
@@ -93,9 +98,6 @@ export default function Login() {
   return (
     <View style={styles.container}>
       <View style={styles.headerContainer}>
-        <View style={styles.temporaryLoginButtonContainer}>
-          {renderKakaoLoginButton("임시 로그인 버튼")}
-        </View>
         <Text style={styles.headerText}>
           더 똑똑하게{"\n"}친구들과 장소를 공유해봐요.
         </Text>
@@ -124,9 +126,23 @@ export default function Login() {
         </View>
         <View style={styles.termsNoticeTextContainer}>
           <Text style={styles.termsNoticeText}>
-            진행 시 <Text style={styles.termsNoticeLink}>약관</Text> 및{" "}
-            <Text style={styles.termsNoticeLink}>개인정보 보호정책</Text>에
-            동의합니다
+            진행 시{" "}
+            <Text
+              style={styles.termsNoticeLink}
+              onPress={() => void NativeLinking.openURL(TERMS_URL)}
+              accessibilityRole="link"
+            >
+              약관
+            </Text>{" "}
+            및{" "}
+            <Text
+              style={styles.termsNoticeLink}
+              onPress={() => void NativeLinking.openURL(PRIVACY_POLICY_URL)}
+              accessibilityRole="link"
+            >
+              개인정보 보호정책
+            </Text>
+            에 동의합니다
           </Text>
         </View>
       </View>
@@ -144,10 +160,6 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   headerContainer: {},
-  temporaryLoginButtonContainer: {
-    alignItems: "center",
-    marginBottom: 24,
-  },
   headerText: {
     ...TextStyles.Bold24,
     color: Colors.gray_900,
