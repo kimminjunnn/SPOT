@@ -1,9 +1,14 @@
+import { useEffect, useState } from "react";
 import * as WebBrowser from "expo-web-browser";
 import * as Linking from "expo-linking";
-import { router, useLocalSearchParams } from "expo-router";
+import * as AppleAuthentication from "expo-apple-authentication";
+import * as Crypto from "expo-crypto";
+import { router, useLocalSearchParams, type Href } from "expo-router";
 import {
+  Alert,
   Image,
   Linking as NativeLinking,
+  Platform,
   StyleSheet,
   View,
   Text,
@@ -12,6 +17,8 @@ import {
 } from "react-native";
 import { TextStyles } from "@/src/styles/TextStyles";
 import { Colors } from "@/src/styles/Colors";
+import { loginWithApple } from "@/src/lib/api/auth";
+import { useAuthStore } from "@/src/stores/useAuthStore";
 
 const { SharedStore } = NativeModules;
 
@@ -26,7 +33,28 @@ const authUrl = `https://kauth.kakao.com/oauth/authorize?response_type=code&clie
   KAKAO_REDIRECT_URI,
 )}`;
 
+function resolveReturnTo(value: string): Href {
+  switch (value) {
+    case "/home":
+      return "/home";
+    case "/map":
+      return "/map";
+    case "/profile":
+      return "/profile";
+    default:
+      return "/";
+  }
+}
+
+function createNonce(): string {
+  return Array.from(Crypto.getRandomBytes(32), (byte) =>
+    byte.toString(16).padStart(2, "0"),
+  ).join("");
+}
+
 export default function Login() {
+  const [isAppleLoginAvailable, setIsAppleLoginAvailable] = useState(false);
+  const [isAppleLoginPending, setIsAppleLoginPending] = useState(false);
   const { returnTo, intent } = useLocalSearchParams<{
     returnTo?: string | string[];
     intent?: string | string[];
@@ -36,6 +64,59 @@ export default function Login() {
     ? returnTo[0]
     : (returnTo ?? "/");
   const nextIntent = Array.isArray(intent) ? intent[0] : (intent ?? "");
+
+  useEffect(() => {
+    if (Platform.OS !== "ios") return;
+
+    void AppleAuthentication.isAvailableAsync()
+      .then(setIsAppleLoginAvailable)
+      .catch(() => setIsAppleLoginAvailable(false));
+  }, []);
+
+  const handleAppleLogin = async () => {
+    if (isAppleLoginPending) return;
+
+    setIsAppleLoginPending(true);
+
+    try {
+      const nonce = createNonce();
+      const credential = await AppleAuthentication.signInAsync({
+        requestedScopes: [
+          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+          AppleAuthentication.AppleAuthenticationScope.EMAIL,
+        ],
+        nonce,
+      });
+
+      if (!credential.identityToken) {
+        throw new Error("Apple identity token을 받지 못했습니다.");
+      }
+
+      const session = await loginWithApple({
+        identityToken: credential.identityToken,
+        authorizationCode: credential.authorizationCode,
+        nonce,
+        appleUserId: credential.user,
+        email: credential.email,
+        fullName: credential.fullName
+          ? AppleAuthentication.formatFullName(credential.fullName)
+          : null,
+      });
+
+      await useAuthStore.getState().setAuth(session);
+      router.replace(resolveReturnTo(nextReturnTo));
+    } catch (error: any) {
+      if (error?.code === "ERR_REQUEST_CANCELED") return;
+
+      console.warn("[Apple Login] error:", error?.message ?? error);
+      Alert.alert(
+        "Apple 로그인 실패",
+        "로그인을 완료하지 못했어요. 잠시 후 다시 시도해 주세요.",
+      );
+    } finally {
+      setIsAppleLoginPending(false);
+    }
+  };
 
   const handleKakaoLogin = async () => {
     try {
@@ -109,14 +190,23 @@ export default function Login() {
         </View>
         <View style={styles.loginButtonContainer}>
           {renderKakaoLoginButton()}
-          {/* <Pressable style={styles.appleLoginButton}>
-            <Image
-              style={styles.appleIcon}
-              source={require("@/assets/images/apple-icon.png")}
-            ></Image>
-            <Text style={styles.appleLoginButtonText}>Apple로 계속하기</Text>
-          </Pressable>
-          <Pressable style={styles.googleLoginButton}>
+          {isAppleLoginAvailable ? (
+            <Pressable
+              disabled={isAppleLoginPending}
+              style={({ pressed }) => [
+                styles.appleLoginButton,
+                (pressed || isAppleLoginPending) && styles.loginButtonPending,
+              ]}
+              onPress={handleAppleLogin}
+            >
+              <Image
+                style={styles.appleIcon}
+                source={require("@/assets/images/apple-icon.png")}
+              />
+              <Text style={styles.appleLoginButtonText}>Apple로 계속하기</Text>
+            </Pressable>
+          ) : null}
+          {/* <Pressable style={styles.googleLoginButton}>
             <Image
               style={styles.googleIcon}
               source={require("@/assets/images/google-icon.png")}
@@ -207,6 +297,7 @@ const styles = StyleSheet.create({
   },
   appleIcon: { width: 14.61, height: 18, marginRight: 6 },
   appleLoginButtonText: { ...TextStyles.SemiBold14, color: "white" },
+  loginButtonPending: { opacity: 0.6 },
   googleLoginButton: {
     backgroundColor: "#FFFFFF",
     flexDirection: "row",
