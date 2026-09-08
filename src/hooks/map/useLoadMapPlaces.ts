@@ -1,7 +1,11 @@
 // /main/me/places 기반으로 저장한 장소 핀 데이터 로드
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { ApiMapPlace } from "@/src/types/place";
 import { fetchMapPlaces } from "@/src/lib/api/places";
+import {
+  getSavedPlacesRefreshRevision,
+  subscribeSavedPlacesRefresh,
+} from "@/src/lib/savedPlacesRefresh";
 
 type Coords = {
   lat: number | null;
@@ -11,19 +15,25 @@ type Coords = {
 export function useLoadMapPlaces(coords: Coords) {
   const [myPlaces, setMyPlaces] = useState<ApiMapPlace[]>([]);
   const lastRequestKeyRef = useRef<string | null>(null);
+  const refreshRevision = useSyncExternalStore(
+    subscribeSavedPlacesRefresh,
+    getSavedPlacesRefreshRevision,
+    getSavedPlacesRefreshRevision,
+  );
 
   useEffect(() => {
     if (coords.lat == null || coords.lng == null) {
       return;
     }
 
-    const requestKey = `${coords.lat},${coords.lng},10`;
+    const requestKey = `${coords.lat},${coords.lng},10,${refreshRevision}`;
 
     if (lastRequestKeyRef.current === requestKey) {
       return;
     }
 
     lastRequestKeyRef.current = requestKey;
+    let cancelled = false;
 
     const load = async () => {
       try {
@@ -33,8 +43,12 @@ export function useLoadMapPlaces(coords: Coords) {
           radius: 10,
         });
 
-        setMyPlaces(list);
+        if (!cancelled) {
+          setMyPlaces(list);
+        }
       } catch (err: any) {
+        if (cancelled) return;
+
         lastRequestKeyRef.current = null;
 
         console.log(
@@ -45,8 +59,12 @@ export function useLoadMapPlaces(coords: Coords) {
       }
     };
 
-    load();
-  }, [coords.lat, coords.lng]);
+    void load();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [coords.lat, coords.lng, refreshRevision]);
 
   return { myPlaces };
 }

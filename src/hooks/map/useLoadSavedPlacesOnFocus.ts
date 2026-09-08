@@ -1,4 +1,4 @@
-import { useCallback, useRef } from "react";
+import { useCallback, useRef, useSyncExternalStore } from "react";
 import { useFocusEffect } from "@react-navigation/native";
 
 import { fetchMyNewSavedPlaces } from "@/src/lib/api/places";
@@ -6,9 +6,18 @@ import { useLocationStore } from "@/src/stores/useLocationStore";
 import { useSavedPlacesStore } from "@/src/stores/useSavedPlacesStore";
 
 import { getRoundedCoords, createCoordsKey } from "@/src/utils/coords";
+import {
+  getSavedPlacesRefreshRevision,
+  subscribeSavedPlacesRefresh,
+} from "@/src/lib/savedPlacesRefresh";
 
 export function useLoadSavedPlacesOnFocus() {
   const lastSavedPlacesKeyRef = useRef<string | null>(null);
+  const refreshRevision = useSyncExternalStore(
+    subscribeSavedPlacesRefresh,
+    getSavedPlacesRefreshRevision,
+    getSavedPlacesRefreshRevision,
+  );
 
   const refreshOnce = useLocationStore((s) => s.refreshOnce);
 
@@ -29,7 +38,7 @@ export function useLoadSavedPlacesOnFocus() {
         if (!coords) return;
 
         const { lat, lng } = getRoundedCoords(coords);
-        const requestKey = createCoordsKey(lat, lng);
+        const requestKey = `${createCoordsKey(lat, lng)},${refreshRevision}`;
 
         if (lastSavedPlacesKeyRef.current === requestKey) {
           return;
@@ -61,11 +70,17 @@ export function useLoadSavedPlacesOnFocus() {
         }
       };
 
-      loadSavedPlaces();
+      void loadSavedPlaces();
 
       return () => {
         cancelled = true;
       };
-    }, [refreshOnce, setSavedList, setSavedLoading, setSavedError]),
+    }, [
+      refreshOnce,
+      refreshRevision,
+      setSavedList,
+      setSavedLoading,
+      setSavedError,
+    ]),
   );
 }

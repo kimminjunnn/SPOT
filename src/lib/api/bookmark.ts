@@ -1,4 +1,5 @@
 import { api8001 } from "./client";
+import { requestSavedPlacesRefresh } from "../savedPlacesRefresh";
 
 export type BookmarkSourceType =
   | "instagram"
@@ -29,6 +30,8 @@ export async function toggleBookmarkApi(
       source_comment_id: source.sourceCommentId ?? null,
     },
   );
+
+  requestSavedPlacesRefresh();
 
   return typeof res.data?.isMarked === "boolean"
     ? res.data.isMarked

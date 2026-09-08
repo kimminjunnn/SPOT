@@ -11,6 +11,7 @@ import {
   mapApiPlacesToPlaces,
   mapHomePlaceItemsToPlaces,
 } from "@/src/lib/mappers/placeMapper";
+import { requestSavedPlacesRefresh } from "@/src/lib/savedPlacesRefresh";
 
 const normalizePhotoList = (...sources: unknown[]): string[] => {
   const photos: string[] = [];
@@ -196,6 +197,7 @@ export async function savePlaces(params: {
       source_user_id: sourceUserId,
       source_comment_id: sourceCommentId,
     });
+    requestSavedPlacesRefresh();
   } catch (err: any) {
     console.error("[POST /places] ERROR", {
       message: err?.message,
