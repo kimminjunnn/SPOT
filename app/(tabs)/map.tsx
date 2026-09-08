@@ -38,6 +38,17 @@ import { useSearchPlaces } from "@/src/hooks/map/useSearchPlaces";
 import { useLoadSavedPlacesOnFocus } from "@/src/hooks/map/useLoadSavedPlacesOnFocus";
 
 import { getRoundedCoords } from "@/src/utils/coords";
+
+const isCanceledRequest = (error: unknown) => {
+  const requestError = error as { name?: string; code?: string; message?: string };
+
+  return (
+    requestError?.name === "CanceledError" ||
+    requestError?.code === "ERR_CANCELED" ||
+    requestError?.message === "canceled"
+  );
+};
+
 export default function Map() {
   const mapRef = useRef<NaverMapViewRef>(null);
   const inquiryRef = useRef<InquiryBottomSheetRef>(null);
@@ -111,11 +122,13 @@ export default function Map() {
   }, [analyzeBatches.length, analyzeVisible]);
 
   useEffect(() => {
-    if (!pendingDetailGid || !coords) return;
+    const lat = stableCoords.lat;
+    const lng = stableCoords.lng;
+
+    if (!pendingDetailGid || lat == null || lng == null) return;
 
     let cancelled = false;
     const gid = pendingDetailGid;
-    const { lat, lng } = coords;
 
     (async () => {
       try {
@@ -123,7 +136,6 @@ export default function Map() {
 
         if (cancelled) return;
 
-        clearPendingDetail();
         focus(detail);
         setSelectedPlaceId(detail.placeId);
 
@@ -136,8 +148,10 @@ export default function Map() {
             easing: "EaseIn",
           });
         }
+
+        clearPendingDetail();
       } catch (e) {
-        if (cancelled) return;
+        if (cancelled || isCanceledRequest(e)) return;
 
         clearPendingDetail();
         console.error("❌ pending place detail fetch 실패:", e);
@@ -147,7 +161,13 @@ export default function Map() {
     return () => {
       cancelled = true;
     };
-  }, [pendingDetailGid, coords, clearPendingDetail, focus]);
+  }, [
+    pendingDetailGid,
+    stableCoords.lat,
+    stableCoords.lng,
+    clearPendingDetail,
+    focus,
+  ]);
 
   const moveToCurrentLocation = async () => {
     try {
