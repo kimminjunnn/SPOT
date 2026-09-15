@@ -32,7 +32,6 @@ export function useLoadMapPlaces(coords: Coords) {
       return;
     }
 
-    lastRequestKeyRef.current = requestKey;
     let cancelled = false;
 
     const load = async () => {
@@ -44,6 +43,7 @@ export function useLoadMapPlaces(coords: Coords) {
         });
 
         if (!cancelled) {
+          lastRequestKeyRef.current = requestKey;
           setMyPlaces(list);
         }
       } catch (err: any) {

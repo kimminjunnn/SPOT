@@ -1,0 +1,24 @@
+{
+  "baselineCommit": "2e46837ecdd872782aae716a3c0301919ea04072",
+  "runtime": "v22.14.0",
+  "platform": "darwin/arm64",
+  "method": "Actual baseline/current modules with mocked HTTP/GPS; 2 concurrent saved-place reads, 3 concurrent location reads, 100 unchanged bookmarks on 1000 places. Counts only; not device latency.",
+  "before": {
+    "savedRequests": 2,
+    "permissions": 3,
+    "positions": 3,
+    "bookmarkNotifications": 100
+  },
+  "after": {
+    "savedRequests": 1,
+    "permissions": 1,
+    "positions": 1,
+    "bookmarkNotifications": 0
+  },
+  "reductionPercent": {
+    "savedRequests": 50,
+    "permissions": 66.66666666666666,
+    "positions": 66.66666666666666,
+    "bookmarkNotifications": 100
+  }
+}

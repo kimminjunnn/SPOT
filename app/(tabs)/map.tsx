@@ -110,10 +110,13 @@ export default function Map() {
   }, [hydrate]);
 
   useEffect(() => {
-    (async () => {
-      await refreshOnce();
-      mapRef.current?.setLocationTrackingMode("Follow");
-    })();
+    void refreshOnce()
+      .then(() => {
+        mapRef.current?.setLocationTrackingMode("Follow");
+      })
+      .catch((error) => {
+        console.warn("[Map] initial location fetch failed:", error);
+      });
   }, [refreshOnce]);
 
   useEffect(() => {

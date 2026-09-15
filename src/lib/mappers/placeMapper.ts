@@ -1,3 +1,4 @@
+import { normalizePhotoList } from "./normalizePhotoList";
 // src/lib/mappers/placeMapper.ts
 import type { ApiMainMePlace, ApiPlace, Place } from "@/src/types/place";
 import { getCategoryLabel } from "@/src/utils/categoryLabel";
@@ -7,14 +8,6 @@ type MapOptions = {
   currentLat?: number;
   currentLng?: number;
   fallbackGid?: string;
-};
-
-const normalizePhotoList = (...sources: unknown[]): string[] => {
-  return sources
-    .flatMap((source) => (Array.isArray(source) ? source : [source]))
-    .filter((photo): photo is string => typeof photo === "string")
-    .map((photo) => photo.trim())
-    .filter(Boolean);
 };
 
 const normalizeSaveTypeKey = (

@@ -1,3 +1,4 @@
+import { normalizePhotoList } from "@/src/lib/mappers/normalizePhotoList";
 // src/lib/api/home.ts
 import { api8080, api8001 } from "@/src/lib/api/client";
 import {
@@ -55,14 +56,6 @@ type HomePlaceApiItem = Omit<HomePlaceItem, "lat" | "lng" | "photos"> &
     isMarked?: boolean;
   };
 
-const normalizePhotoList = (...sources: unknown[]): string[] => {
-  return sources
-    .flatMap((source) => (Array.isArray(source) ? source : [source]))
-    .filter((photo): photo is string => typeof photo === "string")
-    .map((photo) => photo.trim())
-    .filter(Boolean);
-};
-
 function normalizeHomePlaceItem(item: HomePlaceApiItem): HomePlaceItem {
   const photos = normalizePhotoList(item.photos, item.photo);
 
@@ -86,7 +79,9 @@ export async function fetchHomeMain(params: {
   distance: number;
 }) {
   const res = await api8001.get<HomeMainResponse>("/main/home", { params });
-  console.log(res.data);
+  if (__DEV__) {
+    console.log(res.data);
+  }
   return res.data;
 }
 
@@ -111,7 +106,9 @@ export async function fetchHomeUser(params: {
   const res = await api8001.get<HomeUserPlace[]>(`/main/home/${userId}`, {
     params: rest,
   });
-  console.log(res.data);
+  if (__DEV__) {
+    console.log(res.data);
+  }
   return res.data;
 }
 
@@ -131,7 +128,9 @@ export async function fetchHomePlacesMain(params: {
   const res = await api8001.get<HomePlaceApiItem[]>("/main/home/places", {
     params,
   });
-  console.log(res);
+  if (__DEV__) {
+    console.log(res);
+  }
   return normalizeHomePlaceItems(res.data);
 }
 
@@ -140,7 +139,9 @@ export async function fetchHomePlacesMe(params: { lat: number; lng: number }) {
   const res = await api8001.get<HomePlaceApiItem[]>("/main/me/places", {
     params,
   });
-  console.log(res);
+  if (__DEV__) {
+    console.log(res);
+  }
   return normalizeHomePlaceItems(res.data);
 }
 
@@ -154,7 +155,9 @@ export async function fetchHomePlacesUser(params: {
   const res = await api8001.get<HomePlaceApiItem[]>(`/main/places/${userId}`, {
     params: rest,
   });
-  console.log(res);
+  if (__DEV__) {
+    console.log(res);
+  }
   return normalizeHomePlaceItems(res.data);
 }
 

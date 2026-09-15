@@ -1,5 +1,6 @@
 // src/stores/useSavedPlacesStore.ts
 import { create } from "zustand";
+import { updatePlaceBookmark } from "@/src/lib/updatePlaceBookmark";
 import type { Place } from "@/src/types/place";
 import { fetchMyNewSavedPlaces } from "../lib/api/places";
 
@@ -35,31 +36,16 @@ export const useSavedPlacesStore = create<SavedPlacesStore>((set) => ({
 
   applyBookmarkFromPlace: (place, willBookmark) =>
     set((state) => {
-      const exists = state.savedList.some((p) => p.placeId === place.placeId);
-
-      // 언북마크 → 새로고침 전까지 리스트에 남기고 flag만 끈다
-      if (exists) {
-        return {
-          ...state,
-          savedList: state.savedList.map((p) =>
-            p.placeId === place.placeId
-              ? { ...p, isBookmarked: willBookmark }
-              : p,
-          ),
-        };
+      const updated = updatePlaceBookmark(
+        state.savedList,
+        place.placeId,
+        willBookmark,
+      );
+      if (updated !== state.savedList) return { savedList: updated };
+      if (!willBookmark || state.savedList.some((p) => p.placeId === place.placeId)) {
+        return state;
       }
-
-      if (!willBookmark) {
-        return {
-          ...state,
-        };
-      }
-
-      // 등록 + 없음 → 리스트 맨 앞에 추가
-      return {
-        ...state,
-        savedList: [{ ...place, isBookmarked: true }, ...state.savedList],
-      };
+      return { savedList: [{ ...place, isBookmarked: true }, ...state.savedList] };
     }),
 
   refreshSavedPlaces: async ({ lat, lng }) => {

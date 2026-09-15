@@ -62,7 +62,9 @@ export async function getMyProfile(): Promise<MyProfileBundle | null> {
         : [],
     };
   } catch (e) {
-    console.log("getMyProfile error:", e);
+    if (__DEV__) {
+      console.log("getMyProfile error:", e);
+    }
     return null;
   }
 }
@@ -172,8 +174,12 @@ export async function updateMyProfile(
       headers: { "Content-Type": "multipart/form-data" },
     });
 
-    console.log("payload 전체:", payload);
-    console.log(res.data);
+    if (__DEV__) {
+      console.log("payload 전체:", payload);
+    }
+    if (__DEV__) {
+      console.log(res.data);
+    }
     return res.data?.data ?? null;
   } catch {
     return null;

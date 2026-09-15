@@ -101,14 +101,15 @@ export const useRecentFriendSearchStore = create<State & Actions>(
           data.map(normalize).filter(Boolean) as RecentFriendItem[],
         ).slice(0, 10);
 
+        if (get()._abort !== controller) return;
         set({ items: list });
       } catch (e: any) {
+        if (get()._abort !== controller) return;
         if (e?.code !== "ERR_CANCELED" && e?.name !== "CanceledError") {
           set({ error: e?.message ?? "recent friend fetch failed", items: [] });
         }
       } finally {
         if (get()._abort === controller) set({ _abort: null, loading: false });
-        else set({ loading: false });
       }
     },
 

@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { updatePlaceBookmark } from "@/src/lib/updatePlaceBookmark";
 import type { Place } from "@/src/types/place";
 import { fetchHotPlaces } from "@/src/lib/api/places";
 
@@ -118,10 +119,12 @@ export const useHotPlacesStore = create<HotPlacesStore>((set, get) => ({
   },
 
   applyHotBookmarkFromPlace: (place, willBookmark) =>
-    set((state) => ({
-      ...state,
-      hotList: state.hotList.map((p) =>
-        p.placeId === place.placeId ? { ...p, isBookmarked: willBookmark } : p,
-      ),
-    })),
+    set((state) => {
+      const hotList = updatePlaceBookmark(
+        state.hotList,
+        place.placeId,
+        willBookmark,
+      );
+      return hotList === state.hotList ? state : { hotList };
+    }),
 }));

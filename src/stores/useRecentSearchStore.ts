@@ -65,14 +65,15 @@ export const useRecentSearchStore = create<State & Actions>((set, get) => ({
       const list = dedupeByKeyword(
         data.map(normalize).filter(Boolean) as RecentItem[],
       );
+      if (get()._abort !== controller) return;
       set({ items: list });
     } catch (e: any) {
+      if (get()._abort !== controller) return;
       if (e?.code !== "ERR_CANCELED") {
         set({ error: e?.message ?? "recent fetch failed", items: [] });
       }
     } finally {
       if (get()._abort === controller) set({ _abort: null, loading: false });
-      else set({ loading: false });
     }
   },
 

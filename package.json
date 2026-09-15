@@ -8,7 +8,10 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "test": "node --test scripts/*.test.cjs",
+    "typecheck": "tsc --noEmit",
+    "benchmark:optimizations": "node scripts/benchmark-optimizations.cjs"
   },
   "dependencies": {
     "@expo/vector-icons": "^14.1.0",

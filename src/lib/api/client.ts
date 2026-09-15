@@ -19,12 +19,10 @@ function attachInterceptors(client: AxiosInstance): AxiosInstance {
 
   client.interceptors.response.use(
     (res) => {
-      const method = (res.config?.method ?? "GET").toUpperCase();
-
-      console.log(`✅ [${method}] ${res.config.url} ${res.status}`);
-
-      // const fullUrl = res.config ? client.getUri(res.config) : "unknown url";
-      // console.log(`✅ [${method}] ${fullUrl} ${res.status}`);
+      if (__DEV__) {
+        const method = (res.config?.method ?? "GET").toUpperCase();
+        console.log(`✅ [${method}] ${res.config.url} ${res.status}`);
+      }
 
       return res;
     },

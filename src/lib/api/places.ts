@@ -11,7 +11,31 @@ import {
   mapApiPlacesToPlaces,
   mapHomePlaceItemsToPlaces,
 } from "@/src/lib/mappers/placeMapper";
-import { requestSavedPlacesRefresh } from "@/src/lib/savedPlacesRefresh";
+import {
+  getSavedPlacesRefreshRevision,
+  requestSavedPlacesRefresh,
+} from "@/src/lib/savedPlacesRefresh";
+import { createSingleFlight } from "@/src/lib/singleFlight";
+import { useAuthStore } from "@/src/stores/useAuthStore";
+
+const shareSavedPlacesRequest = createSingleFlight<ApiMainMePlace[]>();
+
+function fetchSavedPlacesData(lat: number, lng: number) {
+  // Exact coordinates, session and mutation revision prevent unrelated reads
+  // from sharing a response. Completed responses are deliberately not cached.
+  const key = JSON.stringify([
+    useAuthStore.getState().token,
+    lat,
+    lng,
+    getSavedPlacesRefreshRevision(),
+  ]);
+  return shareSavedPlacesRequest(key, async () => {
+    const { data } = await api8001.get<ApiMainMePlace[]>("/main/me/places", {
+      params: { lat, lng },
+    });
+    return data;
+  });
+}
 
 const normalizePhotoList = (...sources: unknown[]): string[] => {
   const photos: string[] = [];
@@ -45,11 +69,9 @@ export async function fetchMapPlaces(params: {
 }): Promise<ApiMapPlace[]> {
   const { latitude, longitude } = params;
 
-  const res = await api8001.get<ApiMainMePlace[]>("/main/me/places", {
-    params: { lat: latitude, lng: longitude },
-  });
+  const data = await fetchSavedPlacesData(latitude, longitude);
 
-  return res.data.map((place) => ({
+  return data.map((place) => ({
     placeId: place.placeId,
     gid: place.gId,
     latitude: place.latitude,
@@ -66,13 +88,9 @@ export async function fetchMyNewSavedPlaces(params: {
 }): Promise<Place[]> {
   const { lat, lng } = params;
 
-  const res = await api8001.get<ApiMainMePlace[]>("/main/me/places", {
-    params: { lat, lng },
-  });
+  const data = await fetchSavedPlacesData(lat, lng);
 
-  console.log(res.data);
-
-  return mapHomePlaceItemsToPlaces(res.data, {
+  return mapHomePlaceItemsToPlaces(data, {
     currentLat: lat,
     currentLng: lng,
   });
@@ -90,18 +108,20 @@ export async function fetchHotPlaces(params: {
   const res = await api8080.get<ApiPlace[]>("/popular", {
     params: { lat, lng, page, size },
   });
-  console.log(
-    "[/popular] savers",
-    JSON.stringify(
-      res.data.map(({ placeId, name, savers }) => ({
-        placeId,
-        name,
-        savers,
-      })),
-      null,
-      2,
-    ),
-  );
+  if (__DEV__) {
+    console.log(
+      "[/popular] savers",
+      JSON.stringify(
+        res.data.map(({ placeId, name, savers }) => ({
+          placeId,
+          name,
+          savers,
+        })),
+        null,
+        2,
+      ),
+    );
+  }
   return mapApiPlacesToPlaces(res.data, {
     currentLat: lat,
     currentLng: lng,
@@ -120,7 +140,9 @@ export async function fetchPlacesByDistance(params: {
       params: { lat, lng },
     });
 
-    console.log("[/distance] ", res.data);
+    if (__DEV__) {
+      console.log("[/distance] ", res.data);
+    }
 
     return mapApiPlacesToPlaces(res.data, {
       currentLat: lat,
@@ -161,7 +183,9 @@ export async function fetchPlaceMore(params: {
       comments: [],
     };
 
-    console.log("/main/place/details API 응답결과", data);
+    if (__DEV__) {
+      console.log("/main/place/details API 응답결과", data);
+    }
     return data;
   } catch (err: any) {
     console.error("[/main/place/details] ERROR", {

@@ -30,7 +30,12 @@ export function useLoadSavedPlacesOnFocus() {
       let cancelled = false;
 
       const loadSavedPlaces = async () => {
-        await refreshOnce();
+        try {
+          await refreshOnce();
+        } catch (error: any) {
+          if (!cancelled) setSavedError(error?.message ?? "failed to load");
+          return;
+        }
 
         if (cancelled) return;
 
@@ -44,8 +49,6 @@ export function useLoadSavedPlacesOnFocus() {
           return;
         }
 
-        lastSavedPlacesKeyRef.current = requestKey;
-
         setSavedLoading(true);
         setSavedError(null);
 
@@ -56,6 +59,7 @@ export function useLoadSavedPlacesOnFocus() {
           });
 
           if (!cancelled) {
+            lastSavedPlacesKeyRef.current = requestKey;
             setSavedList(list);
           }
         } catch (e: any) {

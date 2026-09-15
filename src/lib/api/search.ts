@@ -23,22 +23,25 @@ export async function fetchSearch(
 let inflight: AbortController | null = null;
 
 /** /search/details (장소 목록) */
-export async function fetchSearchDetails(params: {
-  keyword: string;
-  lat: number;
-  lng: number;
-}): Promise<Place[]> {
+export async function fetchSearchDetails(
+  params: { keyword: string; lat: number; lng: number },
+  options?: { signal?: AbortSignal },
+): Promise<Place[]> {
   const { keyword, lat, lng } = params;
 
-  if (inflight) inflight.abort();
-  inflight = new AbortController();
+  if (!options?.signal) {
+    inflight?.abort();
+    inflight = new AbortController();
+  }
 
   const res = await api8080.get<ApiPlace[]>("/search/details", {
     params: { keyword, lat, lng },
-    signal: inflight.signal,
+    signal: options?.signal ?? inflight!.signal,
   });
 
-  console.log("/search/details 성공: ", res.data);
+  if (__DEV__) {
+    console.log("/search/details 성공: ", res.data);
+  }
 
   const raw = Array.isArray(res.data) ? res.data : [];
   return mapApiPlacesToPlaces(raw, {

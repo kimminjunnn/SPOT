@@ -110,7 +110,9 @@ export async function searchFriends(
     signal,
   });
 
-  console.log("searchFriends raw res.data:", res.data);
+  if (__DEV__) {
+    console.log("searchFriends raw res.data:", res.data);
+  }
 
   const raw = Array.isArray(res.data)
     ? res.data
@@ -118,7 +120,9 @@ export async function searchFriends(
       ? res.data.results
       : [];
 
-  console.log("searchFriends normalized raw:", raw);
+  if (__DEV__) {
+    console.log("searchFriends normalized raw:", raw);
+  }
 
   return raw.map((item) => ({
     id: item.id,
