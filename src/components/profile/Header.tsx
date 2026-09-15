@@ -57,22 +57,24 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
   },
   left: {
-    width: 32,
-    height: 32,
+    width: 40,
+    height: 40,
     justifyContent: "center",
+    alignItems: "flex-start",
   },
   backIcon: {
     width: 40,
     height: 40,
-    paddingRight: 25,
   },
   title: {
     ...TextStyles.SemiBold20,
+    flex: 1,
     color: Colors.gray_900,
+    textAlign: "center",
     paddingBottom: 2, // 위아래 미세 조정
   },
   right: {
-    width: 32,
+    width: 40,
     alignItems: "flex-end",
   },
 });

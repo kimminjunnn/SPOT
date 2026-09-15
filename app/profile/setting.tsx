@@ -6,6 +6,7 @@ import {
   Modal,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Switch,
   Text,
@@ -250,7 +251,12 @@ export default function SettingScreen() {
       <ProfileHeader title="설정" showBack={true} />
 
       {/* 컨테이너 */}
-      <View style={styles.sectionContainer}>
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.sectionContainer}>
         {/* 앱 푸시 알림 */}
         <View style={styles.row}>
           <Text style={styles.rowText}>앱 푸시 알림</Text>
@@ -382,15 +388,22 @@ export default function SettingScreen() {
             </Text>
           </Pressable>
         </View>
-      </View>
+        </View>
+      </ScrollView>
     </ProfileLayout>
   );
 }
 
 const styles = StyleSheet.create({
+  scrollView: {
+    flex: 1,
+    marginHorizontal: -16,
+  },
+  scrollContent: {
+    paddingBottom: 24,
+  },
   sectionContainer: {
     marginTop: 12,
-    marginHorizontal: -16,
   },
 
   row: {

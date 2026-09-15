@@ -13,6 +13,7 @@ import { blockFriend, reportFriend, type Friend } from "@/src/lib/api/friends";
 import ReportModal, {
   type ReportReason,
 } from "@/src/components/common/ReportModal";
+import { CONTENT_MAX_WIDTH } from "@/src/styles/Layout";
 
 type HomeHeaderProps = {
   friends: Friend[];
@@ -172,6 +173,9 @@ export const HomeHeader = ({
 
 const styles = StyleSheet.create({
   headerContainer: {
+    width: "100%",
+    maxWidth: CONTENT_MAX_WIDTH,
+    alignSelf: "center",
     backgroundColor: Colors.white,
     paddingLeft: 16,
   },

@@ -26,6 +26,7 @@ import { useFriendsStore } from "@/src/stores/useFriendsStore";
 import { useRecentFriendSearchStore } from "@/src/stores/useRecentFriendSearchStore";
 import { openFriendHome } from "@/src/lib/navigation/openFriendHome";
 import { toFriendSearchStatus } from "@/src/lib/friends/friendStatus";
+import { CONTENT_MAX_WIDTH } from "@/src/styles/Layout";
 
 export default function SearchFriendScreen() {
   const [searchInputText, setSearchInputText] = useState("");
@@ -261,72 +262,74 @@ export default function SearchFriendScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <View style={styles.inputWrap}>
-          <Pressable onPress={() => submitAndSearch()}>
-            <Image
-              source={
-                searchInputText
-                  ? require("@/assets/images/search-input-icon-black.png")
-                  : require("@/assets/images/search-input-icon-gray.png")
-              }
-              style={styles.searchIcon}
-            />
-          </Pressable>
-
-          <TextInput
-            autoFocus
-            placeholder="별명 또는 아이디를 입력해주세요"
-            value={searchInputText}
-            onChangeText={setSearchInputText}
-            placeholderTextColor={Colors.gray_300}
-            style={styles.inputText}
-            returnKeyType="search"
-            onSubmitEditing={() => submitAndSearch()}
-          />
-
-          {searchInputText ? (
-            <Pressable
-              onPress={() => {
-                setSearchInputText("");
-                setResults(null);
-              }}
-            >
+      <View style={styles.contentColumn}>
+        <View style={styles.header}>
+          <View style={styles.inputWrap}>
+            <Pressable onPress={() => submitAndSearch()}>
               <Image
-                source={require("@/assets/images/x-gray.png")}
-                style={styles.xIcon}
+                source={
+                  searchInputText
+                    ? require("@/assets/images/search-input-icon-black.png")
+                    : require("@/assets/images/search-input-icon-gray.png")
+                }
+                style={styles.searchIcon}
               />
             </Pressable>
-          ) : null}
+
+            <TextInput
+              autoFocus
+              placeholder="별명 또는 아이디를 입력해주세요"
+              value={searchInputText}
+              onChangeText={setSearchInputText}
+              placeholderTextColor={Colors.gray_300}
+              style={styles.inputText}
+              returnKeyType="search"
+              onSubmitEditing={() => submitAndSearch()}
+            />
+
+            {searchInputText ? (
+              <Pressable
+                onPress={() => {
+                  setSearchInputText("");
+                  setResults(null);
+                }}
+              >
+                <Image
+                  source={require("@/assets/images/x-gray.png")}
+                  style={styles.xIcon}
+                />
+              </Pressable>
+            ) : null}
+          </View>
+
+          <Pressable onPress={() => router.back()}>
+            <Text style={styles.backBtn}>취소</Text>
+          </Pressable>
         </View>
 
-        <Pressable onPress={() => router.back()}>
-          <Text style={styles.backBtn}>취소</Text>
-        </Pressable>
-      </View>
+        <View style={styles.body}>
+          {showRecent && (
+            <RecentFriendSearch
+              items={recent}
+              loading={recentLoading}
+              onTapKeyword={(k) => setSearchInputText(k)}
+              onRemoveKeyword={(id) => removeRecent(id)}
+              onClearAll={() => clearRecent()}
+            />
+          )}
 
-      <View style={styles.body}>
-        {showRecent && (
-          <RecentFriendSearch
-            items={recent}
-            loading={recentLoading}
-            onTapKeyword={(k) => setSearchInputText(k)}
-            onRemoveKeyword={(id) => removeRecent(id)}
-            onClearAll={() => clearRecent()}
-          />
-        )}
+          {!showRecent && !showResults && (
+            <Text style={TextStyles.Medium16}>검색 결과가 없어요.</Text>
+          )}
 
-        {!showRecent && !showResults && (
-          <Text style={TextStyles.Medium16}>검색 결과가 없어요.</Text>
-        )}
-
-        {showResults && mappedResults && (
-          <FriendSearchResult
-            data={mappedResults}
-            onPressItem={(friend) => onSelectFriend(friend)}
-            onPressAction={handlePressAction}
-          />
-        )}
+          {showResults && mappedResults && (
+            <FriendSearchResult
+              data={mappedResults}
+              onPressItem={(friend) => onSelectFriend(friend)}
+              onPressAction={handlePressAction}
+            />
+          )}
+        </View>
       </View>
     </SafeAreaView>
   );
@@ -334,6 +337,12 @@ export default function SearchFriendScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.white },
+  contentColumn: {
+    flex: 1,
+    width: "100%",
+    maxWidth: CONTENT_MAX_WIDTH,
+    alignSelf: "center",
+  },
   header: {
     flexDirection: "row",
     paddingHorizontal: 16,

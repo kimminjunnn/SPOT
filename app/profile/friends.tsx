@@ -1,5 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { View, Text, StyleSheet, ActivityIndicator, Alert } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  ActivityIndicator,
+  Alert,
+  FlatList,
+} from "react-native";
 
 import ProfileLayout from "@/src/components/profile/Layout";
 import ProfileHeader from "@/src/components/profile/Header";
@@ -80,39 +87,51 @@ export default function FriendsScreen() {
         </View>
       )}
 
-      {!loading &&
-        !error &&
-        friends.map((u) => {
-          const isFollowing = followingById[u.id] ?? true;
+      {!loading && !error && friends.length > 0 ? (
+        <FlatList
+          style={styles.list}
+          data={friends}
+          keyExtractor={(friend) => String(friend.id)}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+          renderItem={({ item: u }) => {
+            const isFollowing = followingById[u.id] ?? true;
 
-          return (
-            <UserRow
-              key={u.id}
-              nickname={u.nickname}
-              userId={u.userId}
-              bio={u.comment ?? ""}
-              avatarUri={u.avatarUrl ?? null}
-              avatarFill
-              actionLabel={isFollowing ? "팔로잉" : "팔로우"}
-              actionVisuallyDisabled={isFollowing}
-              onPressAction={() => handlePressFollow(u.id, isFollowing)}
-              onPressRow={() =>
-                openFriendHome({
-                  id: u.id,
-                  nickname: u.nickname,
-                  userId: u.userId,
-                  bio: u.comment,
-                  avatarUrl: u.avatarUrl,
-                })
-              }
-            />
-          );
-        })}
+            return (
+              <UserRow
+                nickname={u.nickname}
+                userId={u.userId}
+                bio={u.comment ?? ""}
+                avatarUri={u.avatarUrl ?? null}
+                avatarFill
+                actionLabel={isFollowing ? "팔로잉" : "팔로우"}
+                actionVisuallyDisabled={isFollowing}
+                onPressAction={() => handlePressFollow(u.id, isFollowing)}
+                onPressRow={() =>
+                  openFriendHome({
+                    id: u.id,
+                    nickname: u.nickname,
+                    userId: u.userId,
+                    bio: u.comment,
+                    avatarUrl: u.avatarUrl,
+                  })
+                }
+              />
+            );
+          }}
+        />
+      ) : null}
     </ProfileLayout>
   );
 }
 
 const styles = StyleSheet.create({
+  list: {
+    flex: 1,
+  },
+  listContent: {
+    paddingBottom: 24,
+  },
   stateContainer: {
     paddingVertical: 24,
     alignItems: "center",

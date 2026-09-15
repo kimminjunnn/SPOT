@@ -7,6 +7,7 @@ import {
   StyleProp,
   ViewStyle,
 } from "react-native";
+import { CONTENT_MAX_WIDTH } from "@/src/styles/Layout";
 
 type LayoutProps = {
   children: React.ReactNode;
@@ -28,6 +29,9 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
+    width: "100%",
+    maxWidth: CONTENT_MAX_WIDTH,
+    alignSelf: "center",
     paddingHorizontal: 16,
     backgroundColor: "#ffffff",
   },

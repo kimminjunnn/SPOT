@@ -10,6 +10,7 @@ import PlaceCard from "@/src/components/common/PlaceCard";
 import { formatDistance } from "@/src/utils/format"; // ✅ 공통 util 사용
 import { getPlaceCardSaverProps } from "@/src/lib/mappers/placeCardSavers";
 import type { BookmarkSource } from "@/src/lib/api/bookmark";
+import { CONTENT_MAX_WIDTH } from "@/src/styles/Layout";
 
 type Props = {
   onClose: () => void;
@@ -136,10 +137,13 @@ export default function SearchDetailBottomSheet({
 
 const styles = StyleSheet.create({
   contentContainer: {
+    alignItems: "center",
     paddingHorizontal: 16,
     paddingBottom: 0,
   },
   placeCard: {
+    width: "100%",
+    maxWidth: CONTENT_MAX_WIDTH,
     marginBottom: 0,
   },
   sheetBackground: {

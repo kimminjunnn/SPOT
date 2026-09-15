@@ -13,7 +13,6 @@ import {
   Text,
   Image,
   Pressable,
-  Dimensions,
   ActivityIndicator,
 } from "react-native";
 import { useRouter } from "expo-router";
@@ -30,6 +29,7 @@ import { Colors } from "@/src/styles/Colors";
 import { TextStyles } from "@/src/styles/TextStyles";
 
 import { CommentCard } from "./CommentCard";
+import { CONTENT_MAX_WIDTH } from "@/src/styles/Layout";
 
 export type MorePlace = {
   placeId: number;
@@ -83,9 +83,7 @@ type Props = {
   bookmarkSource?: BookmarkSource;
 };
 
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const PHOTO_GAP = 10;
-const PHOTO_SIZE = Math.floor((SCREEN_WIDTH - 32 - PHOTO_GAP * 2) / 3);
 
 const safeUri = (u?: string | string[] | null) => {
   if (Array.isArray(u)) return safeUri(u[0]);
@@ -331,7 +329,13 @@ const styles = StyleSheet.create({
     width: 60,
   },
 
-  container: { flex: 1, zIndex: 21 },
+  container: {
+    flex: 1,
+    zIndex: 21,
+    width: "100%",
+    maxWidth: CONTENT_MAX_WIDTH,
+    alignSelf: "center",
+  },
 
   topTitleRow: {
     alignItems: "center",
@@ -451,8 +455,8 @@ const styles = StyleSheet.create({
 
   photoRow: { flexDirection: "row", gap: PHOTO_GAP, marginTop: 12 },
   photo: {
-    width: PHOTO_SIZE,
-    height: PHOTO_SIZE,
+    width: "31%",
+    aspectRatio: 1,
     borderRadius: 12,
     backgroundColor: Colors.gray_100 ?? "#F3F4F6",
   },

@@ -150,7 +150,10 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
   inputBox: {
-    height: 365,
+    minHeight: 220,
+    flexGrow: 1,
+    flexShrink: 1,
+    flexBasis: 365,
     marginTop: 24,
     borderRadius: 12,
     paddingTop: 16,

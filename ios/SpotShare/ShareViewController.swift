@@ -131,9 +131,15 @@ final class ShareViewController: UIViewController {
     )
     baseHeightConstraint = baseHeight
 
+    let preferredSheetWidth = sheetView.widthAnchor.constraint(equalTo: view.widthAnchor)
+    preferredSheetWidth.priority = .defaultHigh
+
     NSLayoutConstraint.activate([
-      sheetView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-      sheetView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+      sheetView.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+      sheetView.leadingAnchor.constraint(greaterThanOrEqualTo: view.leadingAnchor),
+      sheetView.trailingAnchor.constraint(lessThanOrEqualTo: view.trailingAnchor),
+      sheetView.widthAnchor.constraint(lessThanOrEqualToConstant: 540),
+      preferredSheetWidth,
       sheetView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
       baseHeight,
 
@@ -142,19 +148,19 @@ final class ShareViewController: UIViewController {
       inquiryLinkButton.heightAnchor.constraint(equalToConstant: 32),
 
       iconView.centerXAnchor.constraint(equalTo: sheetView.centerXAnchor),
-      iconView.topAnchor.constraint(equalTo: sheetView.topAnchor, constant: 106),
+      iconView.topAnchor.constraint(equalTo: sheetView.topAnchor, constant: 48),
       iconView.widthAnchor.constraint(equalToConstant: 72),
       iconView.heightAnchor.constraint(equalToConstant: 72),
 
-      titleLabel.topAnchor.constraint(equalTo: iconView.bottomAnchor, constant: 22),
+      titleLabel.topAnchor.constraint(equalTo: iconView.bottomAnchor, constant: 18),
       titleLabel.leadingAnchor.constraint(equalTo: sheetView.leadingAnchor, constant: 24),
       titleLabel.trailingAnchor.constraint(equalTo: sheetView.trailingAnchor, constant: -24),
 
-      subtitleLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 10),
+      subtitleLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 8),
       subtitleLabel.leadingAnchor.constraint(equalTo: sheetView.leadingAnchor, constant: 24),
       subtitleLabel.trailingAnchor.constraint(equalTo: sheetView.trailingAnchor, constant: -24),
 
-      actionButton.topAnchor.constraint(equalTo: subtitleLabel.bottomAnchor, constant: 52),
+      actionButton.topAnchor.constraint(equalTo: subtitleLabel.bottomAnchor, constant: 24),
       actionButton.centerXAnchor.constraint(equalTo: sheetView.centerXAnchor),
       actionButton.heightAnchor.constraint(equalToConstant: 44)
     ])

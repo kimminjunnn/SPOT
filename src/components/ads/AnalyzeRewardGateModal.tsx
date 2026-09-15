@@ -4,6 +4,7 @@ import {
   Alert,
   Modal,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -115,7 +116,12 @@ export default function AnalyzeRewardGateModal({
   return (
     <Modal transparent visible={visible} animationType="fade">
       <View style={styles.overlay}>
-        <View style={styles.card}>
+        <ScrollView
+          style={styles.card}
+          contentContainerStyle={styles.cardContent}
+          bounces={false}
+          showsVerticalScrollIndicator={false}
+        >
           <Text style={styles.title}>
             무료 저장 기회를{"\n"}모두 사용했어요
           </Text>
@@ -149,7 +155,7 @@ export default function AnalyzeRewardGateModal({
           >
             <Text style={styles.secondaryButtonText}>나중에 하기</Text>
           </Pressable>
-        </View>
+        </ScrollView>
       </View>
     </Modal>
   );
@@ -189,11 +195,14 @@ const styles = StyleSheet.create({
   card: {
     width: "100%",
     maxWidth: 360,
+    maxHeight: "90%",
     borderRadius: 32,
+    backgroundColor: Colors.white,
+  },
+  cardContent: {
     paddingHorizontal: 30,
     paddingTop: 58,
     paddingBottom: 44,
-    backgroundColor: Colors.white,
   },
   title: {
     ...TextStyles.SemiBold24,

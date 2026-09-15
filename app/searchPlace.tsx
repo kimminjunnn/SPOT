@@ -19,6 +19,7 @@ import { useSearchStore } from "@/src/stores/useSearchStore";
 import { useRecentSearchStore } from "@/src/stores/useRecentSearchStore";
 import { fetchSearch } from "@/src/lib/api/search";
 import type { SearchItem, SearchPayload } from "@/src/types/search";
+import { CONTENT_MAX_WIDTH } from "@/src/styles/Layout";
 
 export type RecentItem = {
   id: string;
@@ -141,76 +142,78 @@ export default function SearchPlaceScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* 상단 바: 뒤로가기 + TextInput */}
-      <View style={styles.header}>
-        <View style={styles.inputWrap}>
-          <Pressable onPress={() => submitAndGo()}>
-            <Image
-              source={
-                searchInputText
-                  ? require("@/assets/images/search-input-icon-black.png")
-                  : require("@/assets/images/search-input-icon-gray.png")
-              }
-              style={styles.searchIcon}
-            />
-          </Pressable>
-          <TextInput
-            autoFocus
-            placeholder="지역, 상호명을 검색해보세요"
-            value={searchInputText}
-            onChangeText={setSearchInputText}
-            placeholderTextColor={Colors.gray_300}
-            style={styles.inputText}
-            returnKeyType="search"
-            onSubmitEditing={() => submitAndGo()} // 엔터 제출
-          />
-
-          {/* 검색어 지우기 버튼 */}
-          {searchInputText ? (
-            <Pressable onPress={() => setSearchInputText("")}>
+      <View style={styles.contentColumn}>
+        {/* 상단 바: 뒤로가기 + TextInput */}
+        <View style={styles.header}>
+          <View style={styles.inputWrap}>
+            <Pressable onPress={() => submitAndGo()}>
               <Image
-                source={require("@/assets/images/x-gray.png")}
-                style={styles.xIcon}
+                source={
+                  searchInputText
+                    ? require("@/assets/images/search-input-icon-black.png")
+                    : require("@/assets/images/search-input-icon-gray.png")
+                }
+                style={styles.searchIcon}
               />
             </Pressable>
-          ) : null}
+            <TextInput
+              autoFocus
+              placeholder="지역, 상호명을 검색해보세요"
+              value={searchInputText}
+              onChangeText={setSearchInputText}
+              placeholderTextColor={Colors.gray_300}
+              style={styles.inputText}
+              returnKeyType="search"
+              onSubmitEditing={() => submitAndGo()} // 엔터 제출
+            />
+
+            {/* 검색어 지우기 버튼 */}
+            {searchInputText ? (
+              <Pressable onPress={() => setSearchInputText("")}>
+                <Image
+                  source={require("@/assets/images/x-gray.png")}
+                  style={styles.xIcon}
+                />
+              </Pressable>
+            ) : null}
+          </View>
+
+          {/* 취소 버튼 */}
+          <Pressable onPress={() => router.back()}>
+            <Text style={styles.backBtn}>취소</Text>
+          </Pressable>
         </View>
 
-        {/* 취소 버튼 */}
-        <Pressable onPress={() => router.back()}>
-          <Text style={styles.backBtn}>취소</Text>
-        </Pressable>
-      </View>
+        {/* 바디 */}
+        <View style={styles.body}>
+          {showRecent && (
+            <RecentSearch
+              items={recent}
+              loading={recentLoading}
+              onTapKeyword={(k) => setSearchInputText(k)}
+              onRemoveKeyword={(keyword, id) => removeRecent(keyword, id)}
+            />
+          )}
 
-      {/* 바디 */}
-      <View style={styles.body}>
-        {showRecent && (
-          <RecentSearch
-            items={recent}
-            loading={recentLoading}
-            onTapKeyword={(k) => setSearchInputText(k)}
-            onRemoveKeyword={(keyword, id) => removeRecent(keyword, id)}
-          />
-        )}
+          {!showRecent && !showResults && (
+            <Text style={TextStyles.Medium16}>검색 결과가 없어요.</Text>
+          )}
 
-        {!showRecent && !showResults && (
-          <Text style={TextStyles.Medium16}>검색 결과가 없어요.</Text>
-        )}
+          {showResults && (
+            <SearchResult
+              data={results!}
+              onPressItem={(place) => {
+                void addRecent(place.name);
 
-        {showResults && (
-          <SearchResult
-            data={results!}
-            onPressItem={(place) => {
-              void addRecent(place.name);
+                // ✅ 상세 조회 요청 신호 남기기 (스토어에 pendingDetailGid 저장)
+                requestDetail(place.gid);
 
-              // ✅ 상세 조회 요청 신호 남기기 (스토어에 pendingDetailGid 저장)
-              requestDetail(place.gid);
-
-              // ✅ 홈으로 이동 → index.tsx useEffect에서 /search/detail 호출
-              router.replace("/map");
-            }}
-          />
-        )}
+                // ✅ 홈으로 이동 → index.tsx useEffect에서 /search/detail 호출
+                router.replace("/map");
+              }}
+            />
+          )}
+        </View>
       </View>
     </SafeAreaView>
   );
@@ -220,6 +223,12 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.white,
+  },
+  contentColumn: {
+    flex: 1,
+    width: "100%",
+    maxWidth: CONTENT_MAX_WIDTH,
+    alignSelf: "center",
   },
   header: {
     flexDirection: "row",

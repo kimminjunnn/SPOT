@@ -14,11 +14,14 @@ import {
   Text,
   Pressable,
   NativeModules,
+  SafeAreaView,
+  ScrollView,
 } from "react-native";
 import { TextStyles } from "@/src/styles/TextStyles";
 import { Colors } from "@/src/styles/Colors";
 import { loginWithApple } from "@/src/lib/api/auth";
 import { useAuthStore } from "@/src/stores/useAuthStore";
+import { FORM_MAX_WIDTH } from "@/src/styles/Layout";
 
 const { SharedStore } = NativeModules;
 
@@ -177,96 +180,113 @@ export default function Login() {
   );
 
   return (
-    <View style={styles.container}>
-      <View style={styles.headerContainer}>
-        <Text style={styles.headerText}>
-          더 똑똑하게{"\n"}친구들과 장소를 공유해봐요.
-        </Text>
-        <View style={styles.imageContainer}>
-          <Image
-            style={styles.loginImage}
-            source={require("@/assets/images/loginImage.png")}
-          />
-        </View>
-        <View style={styles.loginButtonContainer}>
-          {renderKakaoLoginButton()}
-          {isAppleLoginAvailable ? (
-            <Pressable
-              disabled={isAppleLoginPending}
-              style={({ pressed }) => [
-                styles.appleLoginButton,
-                (pressed || isAppleLoginPending) && styles.loginButtonPending,
-              ]}
-              onPress={handleAppleLogin}
-            >
-              <Image
-                style={styles.appleIcon}
-                source={require("@/assets/images/apple-icon.png")}
-              />
-              <Text style={styles.appleLoginButtonText}>Apple로 계속하기</Text>
-            </Pressable>
-          ) : null}
-          {/* <Pressable style={styles.googleLoginButton}>
+    <SafeAreaView style={styles.safeArea}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View style={styles.container}>
+          <Text style={styles.headerText}>
+            더 똑똑하게{"\n"}친구들과 장소를 공유해봐요.
+          </Text>
+          <View style={styles.imageContainer}>
+            <Image
+              style={styles.loginImage}
+              source={require("@/assets/images/loginImage.png")}
+              resizeMode="contain"
+            />
+          </View>
+          <View style={styles.loginButtonContainer}>
+            {renderKakaoLoginButton()}
+            {isAppleLoginAvailable ? (
+              <Pressable
+                disabled={isAppleLoginPending}
+                style={({ pressed }) => [
+                  styles.appleLoginButton,
+                  (pressed || isAppleLoginPending) && styles.loginButtonPending,
+                ]}
+                onPress={handleAppleLogin}
+              >
+                <Image
+                  style={styles.appleIcon}
+                  source={require("@/assets/images/apple-icon.png")}
+                />
+                <Text style={styles.appleLoginButtonText}>
+                  Apple로 계속하기
+                </Text>
+              </Pressable>
+            ) : null}
+            {/* <Pressable style={styles.googleLoginButton}>
             <Image
               style={styles.googleIcon}
               source={require("@/assets/images/google-icon.png")}
             ></Image>
             <Text style={styles.googleLoginButtonText}>Google로 계속하기</Text>
           </Pressable> */}
-        </View>
-        <View style={styles.termsNoticeTextContainer}>
-          <Text style={styles.termsNoticeText}>
-            진행 시{" "}
-            <Text
-              style={styles.termsNoticeLink}
-              onPress={() => void NativeLinking.openURL(TERMS_URL)}
-              accessibilityRole="link"
-            >
-              약관
-            </Text>{" "}
-            및{" "}
-            <Text
-              style={styles.termsNoticeLink}
-              onPress={() => void NativeLinking.openURL(PRIVACY_POLICY_URL)}
-              accessibilityRole="link"
-            >
-              개인정보 보호정책
+          </View>
+          <View style={styles.termsNoticeTextContainer}>
+            <Text style={styles.termsNoticeText}>
+              진행 시{" "}
+              <Text
+                style={styles.termsNoticeLink}
+                onPress={() => void NativeLinking.openURL(TERMS_URL)}
+                accessibilityRole="link"
+              >
+                약관
+              </Text>{" "}
+              및{" "}
+              <Text
+                style={styles.termsNoticeLink}
+                onPress={() => void NativeLinking.openURL(PRIVACY_POLICY_URL)}
+                accessibilityRole="link"
+              >
+                개인정보 보호정책
+              </Text>
+              에 동의합니다
             </Text>
-            에 동의합니다
-          </Text>
+          </View>
         </View>
-      </View>
-    </View>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  safeArea: {
     flex: 1,
-    paddingTop: 137,
-    paddingBottom: 30,
-    paddingHorizontal: 24,
-    backgroundColor: "white",
-    justifyContent: "space-between",
+    backgroundColor: Colors.white,
   },
-  headerContainer: {},
+  scrollContent: {
+    flexGrow: 1,
+    justifyContent: "center",
+    paddingVertical: 32,
+    paddingHorizontal: 24,
+  },
+  container: {
+    width: "100%",
+    maxWidth: FORM_MAX_WIDTH,
+    alignSelf: "center",
+    backgroundColor: "white",
+  },
   headerText: {
     ...TextStyles.Bold24,
     color: Colors.gray_900,
     marginBottom: 32,
   },
   imageContainer: {
+    width: "100%",
     alignItems: "center",
   },
   loginImage: {
-    width: 410,
-    height: 453,
+    width: "100%",
+    maxWidth: 410,
+    aspectRatio: 410 / 453,
   },
   loginButtonContainer: {
     alignItems: "center",
     gap: 12,
-    bottom: 20,
-    marginTop: 20,
+    marginTop: 24,
   },
   kakaoLoginButton: {
     backgroundColor: "#FFE500",
@@ -313,6 +333,7 @@ const styles = StyleSheet.create({
   googleLoginButtonText: { ...TextStyles.SemiBold14 },
   termsNoticeTextContainer: {
     alignItems: "center",
+    marginTop: 20,
   },
   termsNoticeText: {
     ...TextStyles.Regular12,

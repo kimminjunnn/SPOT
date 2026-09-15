@@ -8,9 +8,9 @@ import {
   FlatList,
   NativeScrollEvent,
   NativeSyntheticEvent,
-  Dimensions,
   ActivityIndicator,
   Pressable,
+  useWindowDimensions,
 } from "react-native";
 import { useState, useRef, useEffect, useMemo } from "react";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -53,8 +53,7 @@ import InquiryBottomSheet, {
   type InquiryBottomSheetRef,
 } from "@/src/components/inquiry/InquiryBottomSheet";
 import InquiryLink from "@/src/components/inquiry/InquiryLink";
-
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
+import { CONTENT_MAX_WIDTH } from "@/src/styles/Layout";
 
 const normalizePhotoList = (...sources: unknown[]): string[] => {
   const seen = new Set<string>();
@@ -79,6 +78,8 @@ const normalizePhotoList = (...sources: unknown[]): string[] => {
 export default function PlaceDetailScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { width: windowWidth } = useWindowDimensions();
+  const contentWidth = Math.min(windowWidth, CONTENT_MAX_WIDTH);
   const { placeId, lat, lng, sourceType, sourceUserId, sourceCommentId } =
     useLocalSearchParams<{
       placeId: string;
@@ -188,6 +189,15 @@ export default function PlaceDetailScreen() {
     });
   }, [topImageKey]);
 
+  useEffect(() => {
+    requestAnimationFrame(() => {
+      flatListRef.current?.scrollToOffset({
+        offset: (currentPage - 1) * contentWidth,
+        animated: false,
+      });
+    });
+  }, [contentWidth, currentPage]);
+
   // 라우트의 lat/lng는 선택한 장소 좌표다. 지도에는 이 좌표를 사용하고,
   // 거리 계산 및 /more 요청에는 currentCoords를 별도로 사용한다.
   const mapLat = useMemo(() => {
@@ -279,7 +289,10 @@ export default function PlaceDetailScreen() {
 
   const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const offsetX = event.nativeEvent.contentOffset.x;
-    const newPage = Math.floor(offsetX / SCREEN_WIDTH) + 1;
+    const newPage = Math.min(
+      topImages.length,
+      Math.max(1, Math.round(offsetX / contentWidth) + 1),
+    );
     setCurrentPage(newPage);
   };
 
@@ -369,116 +382,128 @@ export default function PlaceDetailScreen() {
 
   return (
     <View style={styles.container}>
-      <ScrollView>
-        <View style={styles.topImageContainer}>
-          <FlatList
-            key={topImageKey}
-            ref={flatListRef}
-            data={topImages}
-            horizontal
-            pagingEnabled
-            onScroll={handleScroll}
-            showsHorizontalScrollIndicator={false}
-            keyExtractor={(item, index) =>
-              typeof item === "object" && item !== null && "uri" in item
-                ? String(item.uri)
-                : `asset-${index}`
-            }
-            renderItem={({ item }) => (
-              <Image source={item} style={styles.topImage} />
-            )}
-          />
-          <View style={styles.paginationContainer}>
-            <Pagination
-              currentPage={currentPage}
-              totalPages={topImages.length}
-              onPrev={handlePrev}
-              onNext={handleNext}
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        <View style={[styles.contentColumn, { width: contentWidth }]}>
+          <View style={styles.topImageContainer}>
+            <FlatList
+              key={topImageKey}
+              ref={flatListRef}
+              data={topImages}
+              horizontal
+              pagingEnabled
+              onScroll={handleScroll}
+              showsHorizontalScrollIndicator={false}
+              getItemLayout={(_data, index) => ({
+                length: contentWidth,
+                offset: contentWidth * index,
+                index,
+              })}
+              keyExtractor={(item, index) =>
+                typeof item === "object" && item !== null && "uri" in item
+                  ? String(item.uri)
+                  : `asset-${index}`
+              }
+              renderItem={({ item }) => (
+                <Image
+                  source={item}
+                  style={[styles.topImage, { width: contentWidth }]}
+                />
+              )}
+            />
+            <View style={styles.paginationContainer}>
+              <Pagination
+                currentPage={currentPage}
+                totalPages={topImages.length}
+                onPrev={handlePrev}
+                onNext={handleNext}
+              />
+            </View>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="뒤로가기"
+              hitSlop={8}
+              onPress={() => router.back()}
+              style={[styles.backButton, { top: insets.top + 8 }]}
+            >
+              <Image
+                source={require("@/assets/images/arrow-left-white.png")}
+                style={styles.backIcon}
+              />
+            </Pressable>
+          </View>
+
+          <View style={styles.infoSection}>
+            <PlaceCard
+              name={display.name}
+              category={display.category}
+              address={display.address}
+              images={cardImages}
+              showBookmark={true}
+              isBookmarked={localBookmarked}
+              showDirectionButton={false}
+              rating={display.ratingAvg ?? undefined}
+              reviewCount={display.ratingCount ?? undefined}
+              distanceText={distanceText}
+              onToggleBookmark={handleToggleBookmark}
             />
           </View>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="뒤로가기"
-            hitSlop={8}
-            onPress={() => router.back()}
-            style={[styles.backButton, { top: insets.top + 8 }]}
+
+          <Text
+            style={[TextStyles.Bold16, { color: Colors.gray_900, padding: 16 }]}
           >
-            <Image
-              source={require("@/assets/images/arrow-left-white.png")}
-              style={styles.backIcon}
-            />
-          </Pressable>
-        </View>
+            매장 위치
+          </Text>
 
-        <View style={styles.infoSection}>
-          <PlaceCard
-            name={display.name}
-            category={display.category}
-            address={display.address}
-            images={cardImages}
-            showBookmark={true}
-            isBookmarked={localBookmarked}
-            showDirectionButton={false}
-            rating={display.ratingAvg ?? undefined}
-            reviewCount={display.ratingCount ?? undefined}
-            distanceText={distanceText}
-            onToggleBookmark={handleToggleBookmark}
+          <View style={styles.mapContainer}>
+            {hasValidCoords ? (
+              <NaverMapView
+                style={styles.map}
+                camera={{
+                  latitude: mapLat,
+                  longitude: mapLng,
+                  zoom: 17,
+                }}
+                isShowLocationButton={false}
+              >
+                <NaverMapMarkerOverlay
+                  latitude={mapLat}
+                  longitude={mapLng}
+                  width={20}
+                  height={25}
+                />
+              </NaverMapView>
+            ) : (
+              <View style={styles.mapFallback}>
+                <Text
+                  style={[TextStyles.Regular12, { color: Colors.gray_400 }]}
+                >
+                  위치 정보를 불러올 수 없어요.
+                </Text>
+              </View>
+            )}
+          </View>
+
+          <SpotButton
+            label="네이버 지도로 길 찾기"
+            variant="primary"
+            size="large"
+            style={{ marginHorizontal: 16 }}
+            onPress={handleOpenNaverMap}
           />
-        </View>
 
-        <Text
-          style={[TextStyles.Bold16, { color: Colors.gray_900, padding: 16 }]}
-        >
-          매장 위치
-        </Text>
+          <SavedInfoCard savers={display.savers} />
 
-        <View style={styles.mapContainer}>
-          {hasValidCoords ? (
-            <NaverMapView
-              style={styles.map}
-              camera={{
-                latitude: mapLat,
-                longitude: mapLng,
-                zoom: 17,
-              }}
-              isShowLocationButton={false}
-            >
-              <NaverMapMarkerOverlay
-                latitude={mapLat}
-                longitude={mapLng}
-                width={20}
-                height={25}
-              />
-            </NaverMapView>
-          ) : (
-            <View style={styles.mapFallback}>
-              <Text style={[TextStyles.Regular12, { color: Colors.gray_400 }]}>
-                위치 정보를 불러올 수 없어요.
-              </Text>
-            </View>
-          )}
-        </View>
+          <InquiryLink
+            onPress={() => inquiryRef.current?.open()}
+            style={styles.inquiryLink}
+          />
 
-        <SpotButton
-          label="네이버 지도로 길 찾기"
-          variant="primary"
-          size="large"
-          style={{ marginHorizontal: 16 }}
-          onPress={handleOpenNaverMap}
-        />
-
-        <SavedInfoCard savers={display.savers} />
-
-        <InquiryLink
-          onPress={() => inquiryRef.current?.open()}
-          style={styles.inquiryLink}
-        />
-
-        {/* <View style={styles.commentSectionHeader}>
+          {/* <View style={styles.commentSectionHeader}>
           <Text style={styles.commentText}>코멘트</Text>
           <Text style={styles.commentCount}> {comments.length}</Text>
         </View>
         <CommentCard commentList={comments} /> */}
+        </View>
       </ScrollView>
 
       <InquiryBottomSheet
@@ -518,6 +543,13 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
+  scrollContent: {
+    alignItems: "center",
+  },
+  contentColumn: {
+    maxWidth: CONTENT_MAX_WIDTH,
+    backgroundColor: Colors.white,
+  },
   loadingText: {
     marginTop: 10,
     color: Colors.gray_600,
@@ -527,7 +559,6 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
   },
   topImage: {
-    width: SCREEN_WIDTH,
     height: 300,
   },
   paginationContainer: {

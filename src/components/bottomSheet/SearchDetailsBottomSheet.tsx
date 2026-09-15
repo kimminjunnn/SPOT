@@ -18,6 +18,7 @@ import { Colors } from "@/src/styles/Colors";
 import { TextStyles } from "@/src/styles/TextStyles";
 import PlaceCard from "@/src/components/common/PlaceCard";
 import { getPlaceCardSaverProps } from "@/src/lib/mappers/placeCardSavers";
+import { CONTENT_MAX_WIDTH } from "@/src/styles/Layout";
 
 type Props = {
   onClose: () => void; // 검색 모드 종료(Places 시트로 복귀)
@@ -120,7 +121,7 @@ export default function SearchDetailsBottomSheet({
     // success
     return (
       <BottomSheetScrollView
-        contentContainerStyle={{ paddingHorizontal: 12, paddingBottom: 16 }}
+        contentContainerStyle={styles.listContent}
       >
         {items.map((p) => {
           const category = p.category ?? "";
@@ -140,7 +141,7 @@ export default function SearchDetailsBottomSheet({
                 onPressItem?.(p.id);
                 focus(p);
               }}
-              style={{ paddingVertical: 2 }}
+              style={styles.resultItem}
             >
               <PlaceCard
                 name={p.name}
@@ -201,6 +202,9 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 16,
   },
   header: {
+    width: "100%",
+    maxWidth: CONTENT_MAX_WIDTH,
+    alignSelf: "center",
     height: 48,
     backgroundColor: Colors.white,
     flexDirection: "row",
@@ -217,5 +221,15 @@ const styles = StyleSheet.create({
   },
   loadingWrap: {
     paddingTop: 72,
+  },
+  listContent: {
+    alignItems: "center",
+    paddingHorizontal: 12,
+    paddingBottom: 16,
+  },
+  resultItem: {
+    width: "100%",
+    maxWidth: CONTENT_MAX_WIDTH,
+    paddingVertical: 2,
   },
 });

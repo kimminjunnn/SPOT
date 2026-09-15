@@ -29,6 +29,7 @@ import RatingModal from "./RatingModal";
 import CommentActionBar from "./CommentActionBar";
 import { createComment } from "@/src/lib/api/comment";
 import { useMyProfileStore } from "@/src/stores/useMyProfileStore";
+import { CONTENT_MAX_WIDTH } from "@/src/styles/Layout";
 
 export type CommentWriteModalRef = {
   open: () => void;
@@ -245,6 +246,9 @@ export default CommentWriteModal;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    width: "100%",
+    maxWidth: CONTENT_MAX_WIDTH,
+    alignSelf: "center",
     paddingTop: 8,
     paddingHorizontal: 16,
     paddingBottom: 12,

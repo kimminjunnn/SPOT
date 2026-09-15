@@ -28,6 +28,7 @@ import { TextStyles } from "@/src/styles/TextStyles";
 import { useSavedPlacesStore } from "@/src/stores/useSavedPlacesStore"; // ← 추가
 import { useHotPlacesStore } from "@/src/stores/useHotPlacesStore";
 import { useLocationStore } from "@/src/stores/useLocationStore";
+import { CONTENT_MAX_WIDTH } from "@/src/styles/Layout";
 
 interface PlacesBottomSheetContainerProps {
   onPressMyLocation: () => void;
@@ -211,7 +212,12 @@ export default function PlacesBottomSheetContainer({
 }
 
 const styles = StyleSheet.create({
-  contentContainer: { flex: 1 },
+  contentContainer: {
+    flex: 1,
+    width: "100%",
+    maxWidth: CONTENT_MAX_WIDTH,
+    alignSelf: "center",
+  },
   indicatorContainer: { alignItems: "center", paddingVertical: 3 },
   tabContainer: {
     alignItems: "center",

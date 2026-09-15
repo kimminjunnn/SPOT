@@ -5,6 +5,7 @@ import {
   NativeSyntheticEvent,
   NativeScrollEvent,
   RefreshControl,
+  StyleSheet,
 } from "react-native";
 import { router } from "expo-router";
 
@@ -20,6 +21,7 @@ import PlaceNativeAdCard from "@/src/components/ads/PlaceNativeAdCard";
 import SavedPlacesEmptyState from "@/src/components/common/SavedPlacesEmptyState";
 import { insertAdSlots } from "@/src/lib/ads/insertAdSlots";
 import type { BookmarkSource } from "@/src/lib/api/bookmark";
+import { CONTENT_MAX_WIDTH } from "@/src/styles/Layout";
 
 const SORT_OPTIONS = [
   { label: "최신순", value: "latest" },
@@ -162,7 +164,7 @@ export const PlaceTabSection = ({
   }, [onRefresh, onScrollDirection]);
 
   return (
-    <View style={{ flex: 1 }}>
+    <View style={styles.contentColumn}>
       <FilterBar
         sortLabel={sortLabel}
         categoryLabel={categoryLabel}
@@ -267,6 +269,15 @@ export const PlaceTabSection = ({
     </View>
   );
 };
+
+const styles = StyleSheet.create({
+  contentColumn: {
+    flex: 1,
+    width: "100%",
+    maxWidth: CONTENT_MAX_WIDTH,
+    alignSelf: "center",
+  },
+});
 
 function getDisplayDistanceM(
   place: HomePlaceItem,

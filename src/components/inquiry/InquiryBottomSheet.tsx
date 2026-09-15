@@ -27,6 +27,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { createInquiry, type InquiryCategory } from "@/src/lib/api/inquiry";
 import { Colors } from "@/src/styles/Colors";
 import { TextStyles } from "@/src/styles/TextStyles";
+import { CONTENT_MAX_WIDTH } from "@/src/styles/Layout";
 
 const MAX_LENGTH = 500;
 
@@ -240,6 +241,9 @@ export default InquiryBottomSheet;
 
 const styles = StyleSheet.create({
   container: {
+    width: "100%",
+    maxWidth: CONTENT_MAX_WIDTH,
+    alignSelf: "center",
     paddingHorizontal: 16,
   },
   header: {

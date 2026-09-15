@@ -60,7 +60,8 @@ const styles = StyleSheet.create({
   sheet: {
     minHeight: "61.5%",
     alignItems: "center",
-    paddingTop: 106,
+    justifyContent: "center",
+    paddingVertical: 32,
     paddingHorizontal: 24,
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,

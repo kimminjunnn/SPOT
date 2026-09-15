@@ -173,22 +173,27 @@ const styles = StyleSheet.create({
 
   content: {
     flex: 1,
+    minWidth: 0,
     marginRight: 10,
   },
 
   header: {
     flexDirection: "row",
     alignItems: "center",
+    minWidth: 0,
   },
 
   nickname: {
     ...TextStyles.Bold14,
+    flexShrink: 1,
+    minWidth: 0,
     color: Colors.gray_800,
     marginRight: 6,
   },
 
   userId: {
     ...TextStyles.Regular10,
+    flexShrink: 1,
     color: Colors.gray_400,
   },
 

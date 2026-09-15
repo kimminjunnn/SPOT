@@ -1,5 +1,12 @@
 import React, { useCallback, useMemo, useState } from "react";
-import { ActivityIndicator, Alert, StyleSheet, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 
 import ProfileLayout from "@/src/components/profile/Layout";
@@ -87,33 +94,45 @@ export default function BlockedScreen() {
         </View>
       )}
 
-      {!loading &&
-        !error &&
-        rows.map((u) => {
-          const unblocking = unblockingIds.includes(u.friendId);
+      {!loading && !error && rows.length > 0 ? (
+        <FlatList
+          style={styles.list}
+          data={rows}
+          keyExtractor={(user) => String(user.key)}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+          renderItem={({ item: u }) => {
+            const unblocking = unblockingIds.includes(u.friendId);
 
-          return (
-            <UserRow
-              key={u.key}
-              nickname={u.nickname}
-              userId={u.userId}
-              bio={u.bio}
-              avatarUri={u.avatarUri}
-              avatarFill
-              actionLabel={unblocking ? "해제 중" : "차단 해제"}
-              actionDisabled={unblocking}
-              onPressAction={() => handleUnblock(u)}
-              onPressRow={() => {
-                // 나중에 프로필 상세 이동 붙이면 됨
-              }}
-            />
-          );
-        })}
+            return (
+              <UserRow
+                nickname={u.nickname}
+                userId={u.userId}
+                bio={u.bio}
+                avatarUri={u.avatarUri}
+                avatarFill
+                actionLabel={unblocking ? "해제 중" : "차단 해제"}
+                actionDisabled={unblocking}
+                onPressAction={() => handleUnblock(u)}
+                onPressRow={() => {
+                  // 나중에 프로필 상세 이동 붙이면 됨
+                }}
+              />
+            );
+          }}
+        />
+      ) : null}
     </ProfileLayout>
   );
 }
 
 const styles = StyleSheet.create({
+  list: {
+    flex: 1,
+  },
+  listContent: {
+    paddingBottom: 24,
+  },
   stateContainer: {
     paddingVertical: 24,
     alignItems: "center",

@@ -39,7 +39,10 @@ export default function SearchResult({ data, onPressItem }: Props) {
           {/* 2) 가운데 텍스트 영역 */}
           <View style={styles.centerCol}>
             <View style={styles.titleRow}>
-              <Text style={TextStyles.SemiBold16} numberOfLines={1}>
+              <Text
+                style={[TextStyles.SemiBold16, styles.titleText]}
+                numberOfLines={1}
+              >
                 {item.name}
               </Text>
               <Text
@@ -56,7 +59,7 @@ export default function SearchResult({ data, onPressItem }: Props) {
                 style={styles.markerIcon}
               />
               <Text
-                style={[TextStyles.Regular12, { color: Colors.gray_800 }]}
+                style={[TextStyles.Regular12, styles.addressText]}
                 numberOfLines={1}
               >
                 {item.address}
@@ -111,12 +114,17 @@ const styles = StyleSheet.create({
   // 가운데 컬럼
   centerCol: {
     flex: 1,
+    minWidth: 0,
     gap: 6,
   },
   titleRow: {
     flexDirection: "row",
     alignItems: "baseline", // 제목과 뱃지 베이스라인 맞춤
     gap: 6,
+  },
+  titleText: {
+    flexShrink: 1,
+    minWidth: 0,
   },
   badge: {
     color: Colors.gray_700,
@@ -133,6 +141,11 @@ const styles = StyleSheet.create({
   markerIcon: {
     width: 12,
     height: 16,
+  },
+  addressText: {
+    flex: 1,
+    minWidth: 0,
+    color: Colors.gray_800,
   },
 
   // 오른쪽 거리

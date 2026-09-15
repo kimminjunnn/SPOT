@@ -40,7 +40,8 @@ export default function ActionMenuModal({
   menus,
   anchor,
 }: Props) {
-  const { width: windowWidth } = useWindowDimensions();
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+  const estimatedMenuHeight = menus.length * 49;
 
   const handlePressMenu = (onPress: () => void) => {
     onClose();
@@ -48,20 +49,41 @@ export default function ActionMenuModal({
   };
 
   const positionStyle = anchor
-    ? {
-        top: anchor.y + anchor.height + MENU_GAP,
-        left: Math.min(
-          Math.max(
-            anchor.x + anchor.width - MENU_WIDTH,
-            SCREEN_EDGE_MARGIN,
+    ? (() => {
+        const belowAnchor = anchor.y + anchor.height + MENU_GAP;
+        const top =
+          belowAnchor + estimatedMenuHeight <=
+          windowHeight - SCREEN_EDGE_MARGIN
+            ? belowAnchor
+            : Math.max(
+                SCREEN_EDGE_MARGIN,
+                anchor.y - estimatedMenuHeight - MENU_GAP,
+              );
+
+        return {
+          top,
+          left: Math.min(
+            Math.max(
+              anchor.x + anchor.width - MENU_WIDTH,
+              SCREEN_EDGE_MARGIN,
+            ),
+            Math.max(
+              SCREEN_EDGE_MARGIN,
+              windowWidth - MENU_WIDTH - SCREEN_EDGE_MARGIN,
+            ),
           ),
-          Math.max(
-            SCREEN_EDGE_MARGIN,
-            windowWidth - MENU_WIDTH - SCREEN_EDGE_MARGIN,
+        };
+      })()
+    : {
+        top: Math.max(
+          SCREEN_EDGE_MARGIN,
+          Math.min(
+            265,
+            windowHeight - estimatedMenuHeight - SCREEN_EDGE_MARGIN,
           ),
         ),
-      }
-    : styles.fallbackPosition;
+        right: SCREEN_EDGE_MARGIN,
+      };
 
   return (
     <Modal
@@ -118,10 +140,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.12,
     shadowRadius: 15,
     elevation: 8,
-  },
-  fallbackPosition: {
-    top: 265,
-    right: SCREEN_EDGE_MARGIN,
   },
   menuContainer: {
     backgroundColor: Colors.white,

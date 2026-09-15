@@ -1,5 +1,6 @@
 import { View, Image, TouchableOpacity, StyleSheet } from "react-native";
 import { router } from "expo-router";
+import { CONTENT_MAX_WIDTH } from "@/src/styles/Layout";
 
 export const TopBar = () => {
   return (
@@ -30,6 +31,9 @@ export const TopBar = () => {
 
 const styles = StyleSheet.create({
   topBar: {
+    width: "100%",
+    maxWidth: CONTENT_MAX_WIDTH,
+    alignSelf: "center",
     flexDirection: "row",
     justifyContent: "space-between",
     paddingHorizontal: 16,

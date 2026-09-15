@@ -1,13 +1,26 @@
 import { router } from "expo-router";
-import { StyleSheet, Pressable, Image, Text } from "react-native";
+import {
+  StyleSheet,
+  Pressable,
+  Image,
+  Text,
+  useWindowDimensions,
+} from "react-native";
 
 import { TextStyles } from "@/src/styles/TextStyles";
 import { Colors } from "@/src/styles/Colors";
+import { CONTENT_MAX_WIDTH } from "@/src/styles/Layout";
 
 export const MapSearchBar = () => {
+  const { width: windowWidth } = useWindowDimensions();
+  const searchWidth = Math.min(windowWidth - 34, CONTENT_MAX_WIDTH - 32);
+
   return (
     <Pressable
-      style={styles.searchInput}
+      style={[
+        styles.searchInput,
+        { width: searchWidth, left: (windowWidth - searchWidth) / 2 },
+      ]}
       onPress={() => router.push("/searchPlace")}
     >
       <Image
@@ -25,8 +38,6 @@ const styles = StyleSheet.create({
   searchInput: {
     position: "absolute",
     top: 60,
-    left: 17,
-    right: 17,
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "white",

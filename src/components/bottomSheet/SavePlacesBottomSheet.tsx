@@ -16,6 +16,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Colors } from "@/src/styles/Colors";
 import { TextStyles } from "@/src/styles/TextStyles";
 import InquiryLink from "@/src/components/inquiry/InquiryLink";
+import { CONTENT_MAX_WIDTH } from "@/src/styles/Layout";
 
 export type SavePlaceItem = {
   id: string;
@@ -148,6 +149,7 @@ function SavePlacesBottomSheet({
       enableDynamicSizing={false}
     >
       <BottomSheetScrollView
+        style={styles.scrollView}
         stickyHeaderIndices={[0]}
         contentContainerStyle={{
           paddingHorizontal: 16,
@@ -307,6 +309,11 @@ function SavePlacesBottomSheet({
 export default memo(SavePlacesBottomSheet);
 
 const styles = StyleSheet.create({
+  scrollView: {
+    width: "100%",
+    maxWidth: CONTENT_MAX_WIDTH,
+    alignSelf: "center",
+  },
   header: {
     backgroundColor: Colors.white,
     paddingVertical: 16,
@@ -456,6 +463,9 @@ const styles = StyleSheet.create({
     color: Colors.gray_300,
   },
   footer: {
+    width: "100%",
+    maxWidth: CONTENT_MAX_WIDTH,
+    alignSelf: "center",
     paddingHorizontal: 16,
     paddingBottom: 12,
     backgroundColor: Colors.white,
