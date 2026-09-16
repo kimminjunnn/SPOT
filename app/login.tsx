@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import * as WebBrowser from "expo-web-browser";
 import * as Linking from "expo-linking";
 import * as AppleAuthentication from "expo-apple-authentication";
@@ -7,21 +7,23 @@ import { router, useLocalSearchParams, type Href } from "expo-router";
 import {
   Alert,
   Image,
-  Linking as NativeLinking,
   Platform,
   StyleSheet,
   View,
   Text,
   Pressable,
   NativeModules,
-  SafeAreaView,
   ScrollView,
+  useWindowDimensions,
 } from "react-native";
 import { TextStyles } from "@/src/styles/TextStyles";
 import { Colors } from "@/src/styles/Colors";
 import { loginWithApple } from "@/src/lib/api/auth";
 import { useAuthStore } from "@/src/stores/useAuthStore";
 import { FORM_MAX_WIDTH } from "@/src/styles/Layout";
+import TermsConsentBottomSheet, {
+  type TermsConsentBottomSheetRef,
+} from "@/src/components/auth/TermsConsentBottomSheet";
 
 const { SharedStore } = NativeModules;
 
@@ -56,6 +58,12 @@ function createNonce(): string {
 }
 
 export default function Login() {
+  const { width: windowWidth } = useWindowDimensions();
+  const canvasWidth = Math.min(windowWidth, FORM_MAX_WIDTH);
+  const canvasScale = canvasWidth / 375;
+  const canvasHeight = 812 * canvasScale;
+  const termsConsentSheetRef = useRef<TermsConsentBottomSheetRef>(null);
+  const pendingLoginProviderRef = useRef<"kakao" | "apple" | null>(null);
   const [isAppleLoginAvailable, setIsAppleLoginAvailable] = useState(false);
   const [isAppleLoginPending, setIsAppleLoginPending] = useState(false);
   const { returnTo, intent } = useLocalSearchParams<{
@@ -161,9 +169,33 @@ export default function Login() {
     }
   };
 
+  const requestSocialLogin = (provider: "kakao" | "apple") => {
+    if (provider === "apple" && isAppleLoginPending) return;
+
+    pendingLoginProviderRef.current = provider;
+    termsConsentSheetRef.current?.open();
+  };
+
+  const handleTermsConfirmed = () => {
+    const provider = pendingLoginProviderRef.current;
+    pendingLoginProviderRef.current = null;
+
+    if (provider === "apple") {
+      void handleAppleLogin();
+      return;
+    }
+
+    if (provider === "kakao") {
+      void handleKakaoLogin();
+    }
+  };
+
   const renderKakaoLoginButton = (label = "카카오로 계속하기") => (
-    <Pressable style={styles.kakaoLoginButton} onPress={handleKakaoLogin}>
-      <View pointerEvents="none">
+    <Pressable
+      style={styles.kakaoLoginButton}
+      onPress={() => requestSocialLogin("kakao")}
+    >
+      <View pointerEvents="none" style={styles.signUpOverlay}>
         <Image
           style={styles.signUpImage}
           source={require("@/assets/images/login-3second.png")}
@@ -180,113 +212,128 @@ export default function Login() {
   );
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <View style={styles.screen}>
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        <View style={styles.container}>
-          <Text style={styles.headerText}>
-            더 똑똑하게{"\n"}친구들과 장소를 공유해봐요.
-          </Text>
-          <View style={styles.imageContainer}>
-            <Image
-              style={styles.loginImage}
-              source={require("@/assets/images/loginImage.png")}
-              resizeMode="contain"
-            />
-          </View>
-          <View style={styles.loginButtonContainer}>
-            {renderKakaoLoginButton()}
-            {isAppleLoginAvailable ? (
-              <Pressable
-                disabled={isAppleLoginPending}
-                style={({ pressed }) => [
-                  styles.appleLoginButton,
-                  (pressed || isAppleLoginPending) && styles.loginButtonPending,
-                ]}
-                onPress={handleAppleLogin}
-              >
-                <Image
-                  style={styles.appleIcon}
-                  source={require("@/assets/images/apple-icon.png")}
-                />
-                <Text style={styles.appleLoginButtonText}>
-                  Apple로 계속하기
-                </Text>
-              </Pressable>
-            ) : null}
-            {/* <Pressable style={styles.googleLoginButton}>
-            <Image
-              style={styles.googleIcon}
-              source={require("@/assets/images/google-icon.png")}
-            ></Image>
-            <Text style={styles.googleLoginButtonText}>Google로 계속하기</Text>
-          </Pressable> */}
-          </View>
-          <View style={styles.termsNoticeTextContainer}>
-            <Text style={styles.termsNoticeText}>
-              진행 시{" "}
-              <Text
-                style={styles.termsNoticeLink}
-                onPress={() => void NativeLinking.openURL(TERMS_URL)}
-                accessibilityRole="link"
-              >
-                약관
-              </Text>{" "}
-              및{" "}
-              <Text
-                style={styles.termsNoticeLink}
-                onPress={() => void NativeLinking.openURL(PRIVACY_POLICY_URL)}
-                accessibilityRole="link"
-              >
-                개인정보 보호정책
-              </Text>
-              에 동의합니다
+        <View
+          style={[
+            styles.canvasViewport,
+            { width: canvasWidth, height: canvasHeight },
+          ]}
+        >
+          <View
+            style={[
+              styles.phoneCanvas,
+              { transform: [{ scale: canvasScale }] },
+            ]}
+          >
+            <Text style={styles.headerText}>
+              더 똑똑하게{"\n"}친구들과 장소를 공유해봐요.
             </Text>
+            <View style={styles.imageContainer}>
+              <Image
+                style={styles.loginImage}
+                source={require("@/assets/images/loginImage.png")}
+                resizeMode="contain"
+              />
+            </View>
+            <View style={styles.loginButtonContainer}>
+              {renderKakaoLoginButton()}
+              {isAppleLoginAvailable ? (
+                <Pressable
+                  disabled={isAppleLoginPending}
+                  style={({ pressed }) => [
+                    styles.appleLoginButton,
+                    (pressed || isAppleLoginPending) &&
+                      styles.loginButtonPending,
+                  ]}
+                  onPress={() => requestSocialLogin("apple")}
+                >
+                  <Image
+                    style={styles.appleIcon}
+                    source={require("@/assets/images/apple-icon.png")}
+                  />
+                  <Text style={styles.appleLoginButtonText}>
+                    Apple로 계속하기
+                  </Text>
+                </Pressable>
+              ) : null}
+              {/* <Pressable style={styles.googleLoginButton}>
+                <Image
+                  style={styles.googleIcon}
+                  source={require("@/assets/images/google-icon.png")}
+                ></Image>
+                <Text style={styles.googleLoginButtonText}>
+                  Google로 계속하기
+                </Text>
+              </Pressable> */}
+            </View>
           </View>
         </View>
       </ScrollView>
-    </SafeAreaView>
+      <TermsConsentBottomSheet
+        ref={termsConsentSheetRef}
+        termsUrl={TERMS_URL}
+        privacyPolicyUrl={PRIVACY_POLICY_URL}
+        onConfirm={handleTermsConfirmed}
+        onDismiss={() => {
+          pendingLoginProviderRef.current = null;
+        }}
+      />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
+  screen: {
     flex: 1,
     backgroundColor: Colors.white,
   },
   scrollContent: {
     flexGrow: 1,
-    justifyContent: "center",
-    paddingVertical: 32,
-    paddingHorizontal: 24,
+    alignItems: "center",
   },
-  container: {
-    width: "100%",
-    maxWidth: FORM_MAX_WIDTH,
+  canvasViewport: {
     alignSelf: "center",
-    backgroundColor: "white",
+    overflow: "hidden",
+  },
+  phoneCanvas: {
+    position: "relative",
+    width: 375,
+    height: 812,
+    overflow: "hidden",
+    backgroundColor: Colors.white,
+    transformOrigin: "top left",
   },
   headerText: {
+    position: "absolute",
+    top: 137,
+    left: 16,
+    right: 16,
     ...TextStyles.Bold24,
-    color: Colors.gray_900,
-    marginBottom: 32,
+    color: "#2E3133",
   },
   imageContainer: {
-    width: "100%",
-    alignItems: "center",
+    position: "absolute",
+    top: 219,
+    left: "50%",
+    width: 410,
+    height: 453,
+    transform: [{ translateX: -205 }],
   },
   loginImage: {
-    width: "100%",
-    maxWidth: 410,
-    aspectRatio: 410 / 453,
+    width: 410,
+    height: 453,
   },
   loginButtonContainer: {
-    alignItems: "center",
+    position: "absolute",
+    top: 624.6,
+    left: 16,
+    right: 16,
     gap: 12,
-    marginTop: 24,
   },
   kakaoLoginButton: {
     backgroundColor: "#FFE500",
@@ -297,15 +344,21 @@ const styles = StyleSheet.create({
     height: 48,
     borderRadius: 10,
   },
+  signUpOverlay: {
+    ...StyleSheet.absoluteFillObject,
+  },
   signUpImage: {
     position: "absolute",
-    right: -20,
-    bottom: 23,
-    width: 135,
-    height: 50.6,
+    left: 5.75,
+    bottom: 42,
+    width: 128,
+    height: 56.5,
   },
   kakaoIcon: { width: 18, height: 18, marginRight: 6 },
-  kakaoLoginButtonText: { ...TextStyles.SemiBold14 },
+  kakaoLoginButtonText: {
+    ...TextStyles.SemiBold14,
+    color: "#181A1C",
+  },
   appleLoginButton: {
     backgroundColor: "#000000",
     flexDirection: "row",
@@ -331,16 +384,4 @@ const styles = StyleSheet.create({
   },
   googleIcon: { width: 18, height: 18, marginRight: 6 },
   googleLoginButtonText: { ...TextStyles.SemiBold14 },
-  termsNoticeTextContainer: {
-    alignItems: "center",
-    marginTop: 20,
-  },
-  termsNoticeText: {
-    ...TextStyles.Regular12,
-    color: Colors.gray_300,
-  },
-  termsNoticeLink: {
-    ...TextStyles.Bold12,
-    textDecorationLine: "underline",
-  },
 });

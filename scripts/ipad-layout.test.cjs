@@ -50,14 +50,21 @@ test("responsive screens do not cache the initial window width", () => {
   assert.match(sources[0], /useWindowDimensions/);
 });
 
-test("compact-height screens provide scrolling and bounded content", () => {
+test("compact-height screens scroll while preserving the phone design ratio", () => {
   const login = read("app/login.tsx");
   const settings = read("app/profile/setting.tsx");
   const profileLayout = read("src/components/profile/Layout.tsx");
 
   assert.match(login, /<ScrollView/);
-  assert.match(login, /maxWidth: FORM_MAX_WIDTH/);
-  assert.match(login, /aspectRatio: 410 \/ 453/);
+  assert.match(login, /useWindowDimensions/);
+  assert.match(login, /Math\.min\(windowWidth, FORM_MAX_WIDTH\)/);
+  assert.match(login, /canvasWidth \/ 375/);
+  assert.match(login, /812 \* canvasScale/);
+  assert.match(login, /width: 410/);
+  assert.match(login, /height: 453/);
+  assert.match(login, /top: 624\.6/);
+  assert.match(login, /gap: 12/);
+  assert.doesNotMatch(login, /LinearGradient|bottomGradient/);
   assert.match(settings, /<ScrollView/);
   assert.match(profileLayout, /maxWidth: CONTENT_MAX_WIDTH/);
 });
