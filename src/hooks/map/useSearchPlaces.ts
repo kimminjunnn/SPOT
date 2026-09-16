@@ -11,6 +11,7 @@ type Coords = {
 };
 
 const SEARCH_LOCATION_TIMEOUT_MS = 10_000;
+const SEARCH_DETAILS_DEBOUNCE_MS = 400;
 
 function isCanceledError(error: any) {
   return (
@@ -54,12 +55,12 @@ export function useSearchPlaces(
     if (!query) return;
 
     let alive = true;
-    const controller = new AbortController();
+    let controller: AbortController | null = null;
 
-    const loadSearchResults = async () => {
+    setLoading();
+
+    const loadSearchResults = async (signal: AbortSignal) => {
       try {
-        setLoading();
-
         let lat = coords.lat;
         let lng = coords.lng;
 
@@ -94,7 +95,7 @@ export function useSearchPlaces(
 
         const list = await fetchSearchDetails(
           { keyword: query, lat, lng },
-          { signal: controller.signal },
+          { signal },
         );
 
         if (!alive) return;
@@ -113,11 +114,18 @@ export function useSearchPlaces(
       }
     };
 
-    loadSearchResults();
+    // Query or coordinates can change several times while navigating to the
+    // map. Wait for them to settle so only the latest combination reaches the
+    // server. Cleanup also collapses React effect replays before dispatch.
+    const debounceTimer = setTimeout(() => {
+      controller = new AbortController();
+      void loadSearchResults(controller.signal);
+    }, SEARCH_DETAILS_DEBOUNCE_MS);
 
     return () => {
       alive = false;
-      controller.abort();
+      clearTimeout(debounceTimer);
+      controller?.abort();
     };
   }, [
     query,

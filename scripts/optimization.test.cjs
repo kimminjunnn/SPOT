@@ -9,6 +9,7 @@ const deferred = () => {
   return { promise, resolve, reject };
 };
 const flush = () => new Promise(setImmediate);
+const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
 const coords = { lat: 37.5, lng: 127 };
 const rawPlace = { placeId: 1, gId: 'gid', name: 'Cafe', latitude: 37.5, longitude: 127, photo: [' a ', null, ''], list: 'cafe' };
 
@@ -210,12 +211,45 @@ test('search cleanup aborts its own transport signal without publishing late res
   });
   load('src/hooks/map/useSearchPlaces').useSearchPlaces({ current: null }, coords);
   const cleanup = effects[0]();
+  await wait(450);
   assert.equal(signal.aborted, false);
   cleanup();
   assert.equal(signal.aborted, true);
   pending.resolve([]);
   await flush();
   assert.equal(results, 0);
+});
+
+test('search details debounce collapses rapid effect replay into one API call', async () => {
+  const effects = [];
+  let apiCalls = 0;
+  const state = {
+    query: 'cafe',
+    items: [],
+    setLoading() {},
+    setResult() {},
+    setError() { assert.fail('unexpected search error'); },
+  };
+  const location = selector => selector({ refreshOnce: async () => {} });
+  location.getState = () => ({ coords });
+  const load = createLoader({
+    react: { useEffect: effect => effects.push(effect) },
+    '@/src/stores/useSearchStore': { useSearchStore: selector => selector(state) },
+    '@/src/stores/useLocationStore': { useLocationStore: location },
+    '@/src/lib/api/search': {
+      fetchSearchDetails: async () => { apiCalls++; return []; },
+    },
+  });
+
+  load('src/hooks/map/useSearchPlaces').useSearchPlaces({ current: null }, coords);
+  const cancelFirst = effects[0]();
+  cancelFirst();
+  const cleanup = effects[0]();
+
+  assert.equal(apiCalls, 0);
+  await wait(450);
+  assert.equal(apiCalls, 1);
+  cleanup();
 });
 
 test('search leaves loading with an error when location cannot be resolved', async () => {
@@ -242,6 +276,7 @@ test('search leaves loading with an error when location cannot be resolved', asy
     { lat: null, lng: null },
   );
   effects[0]();
+  await wait(450);
   await flush();
 
   assert.equal(apiCalls, 0);
