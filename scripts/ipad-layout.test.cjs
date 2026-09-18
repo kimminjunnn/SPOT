@@ -78,3 +78,25 @@ test("share extension stays readable if presented in a wide compatibility surfac
     /iconView\.topAnchor\.constraint\(equalTo: sheetView\.topAnchor, constant: 48\)/,
   );
 });
+
+test("the app and share extension ship with the same short version", () => {
+  const appInfoPlist = read("ios/SPOT/Info.plist");
+  const shareInfoPlist = read("ios/SpotShare/Info.plist");
+  const project = read("ios/SPOT.xcodeproj/project.pbxproj");
+  const appVersion = appInfoPlist.match(
+    /<key>CFBundleShortVersionString<\/key>\s*<string>([^<]+)<\/string>/,
+  );
+
+  assert.ok(appVersion);
+  assert.match(
+    shareInfoPlist,
+    /<key>CFBundleShortVersionString<\/key>\s*<string>\$\(MARKETING_VERSION\)<\/string>/,
+  );
+
+  const marketingVersions = [
+    ...project.matchAll(/MARKETING_VERSION = ([^;]+);/g),
+  ].map((match) => match[1]);
+
+  assert.equal(marketingVersions.length, 4);
+  assert.deepEqual(new Set(marketingVersions), new Set([appVersion[1]]));
+});
