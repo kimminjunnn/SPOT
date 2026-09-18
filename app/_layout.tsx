@@ -90,6 +90,7 @@ export default function RootLayout() {
     const isAuthRoute = rootSegment === "login" || rootSegment === "oauth";
 
     if (!token && !isAuthRoute) {
+      useAuthStore.getState().clearPendingAgreement();
       router.replace({
         pathname: "/login",
         params: {

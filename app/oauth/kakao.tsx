@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { ActivityIndicator, View, Alert } from "react-native";
 import { useLocalSearchParams, useRouter, type Href } from "expo-router";
+import { normalizeSocialLoginResponse } from "@/src/lib/auth/socialLogin";
 import { useAuthStore } from "@/src/stores/useAuthStore";
 
 function toStr(v: string | string[] | undefined) {
@@ -25,13 +26,17 @@ function resolveReturnTo(value: string): Href {
 
 export default function KakaoOAuthRedirect() {
   const router = useRouter();
-  const { token, email, nickname, error, returnTo } = useLocalSearchParams<{
-    token?: string | string[];
-    email?: string | string[];
-    nickname?: string | string[];
-    error?: string | string[];
-    returnTo?: string | string[];
-  }>();
+  const { status, accessToken, token, email, nickname, error, returnTo, intent } =
+    useLocalSearchParams<{
+      status?: string | string[];
+      accessToken?: string | string[];
+      token?: string | string[];
+      email?: string | string[];
+      nickname?: string | string[];
+      error?: string | string[];
+      returnTo?: string | string[];
+      intent?: string | string[];
+    }>();
 
   const ranRef = useRef(false);
 
@@ -40,41 +45,70 @@ export default function KakaoOAuthRedirect() {
       if (ranRef.current) return;
       ranRef.current = true;
 
-      const t = toStr(token);
-      const e = toStr(error);
-      const em = toStr(email);
-      const nn = toStr(nickname);
-      const next = resolveReturnTo(toStr(returnTo));
-
-      if (e) {
-        Alert.alert("로그인 실패", e);
-        router.replace("/login");
-        return;
-      }
-
-      if (!t) {
-        Alert.alert("로그인 실패", "토큰이 없습니다.");
-        router.replace("/login");
-        return;
-      }
+      const rawReturnTo = toStr(returnTo);
+      const rawIntent = toStr(intent);
+      const next = resolveReturnTo(rawReturnTo);
 
       try {
+        const result = normalizeSocialLoginResponse({
+          status: toStr(status),
+          accessToken: toStr(accessToken),
+          token: toStr(token),
+          email: toStr(email),
+          nickname: toStr(nickname),
+          error: toStr(error),
+        });
+
+        if (result.status === "AGREEMENT_REQUIRED") {
+          useAuthStore.getState().setPendingAgreement({
+            temporaryToken: result.accessToken,
+            email: result.email,
+            nickname: result.nickname,
+          });
+          router.replace({
+            pathname: "/login",
+            params: {
+              returnTo: rawReturnTo || "/",
+              ...(rawIntent ? { intent: rawIntent } : {}),
+            },
+          });
+          return;
+        }
+
         await useAuthStore.getState().setAuth({
-          token: t,
-          email: em,
-          nickname: nn,
+          token: result.accessToken,
+          email: result.email,
+          nickname: result.nickname,
         });
 
         router.replace(next);
-      } catch (err: any) {
-        console.warn("[Kakao OAuth] setAuth 실패:", err?.message || err);
-        Alert.alert("로그인 실패", "세션 저장 중 문제가 발생했습니다.");
-        router.replace("/login");
+      } catch (err) {
+        useAuthStore.getState().clearPendingAgreement();
+        const message =
+          err instanceof Error
+            ? err.message
+            : "로그인 응답을 처리하지 못했습니다.";
+        console.warn("[Kakao OAuth] 로그인 처리 실패:", message);
+        Alert.alert("로그인 실패", message);
+        router.replace({
+          pathname: "/login",
+          params: { returnTo: rawReturnTo || "/" },
+        });
       }
     };
 
     run();
-  }, [token, email, nickname, error, returnTo, router]);
+  }, [
+    status,
+    accessToken,
+    token,
+    email,
+    nickname,
+    error,
+    returnTo,
+    intent,
+    router,
+  ]);
 
   return (
     <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>

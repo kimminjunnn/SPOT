@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { isAxiosError } from "axios";
 import * as WebBrowser from "expo-web-browser";
 import * as Linking from "expo-linking";
 import * as AppleAuthentication from "expo-apple-authentication";
@@ -12,20 +13,24 @@ import {
   View,
   Text,
   Pressable,
-  NativeModules,
   ScrollView,
   useWindowDimensions,
 } from "react-native";
 import { TextStyles } from "@/src/styles/TextStyles";
 import { Colors } from "@/src/styles/Colors";
-import { loginWithApple } from "@/src/lib/api/auth";
+import {
+  loginWithApple,
+  submitRequiredAgreements,
+} from "@/src/lib/api/auth";
+import {
+  parseKakaoCallbackUrl,
+  type SocialLoginResult,
+} from "@/src/lib/auth/socialLogin";
 import { useAuthStore } from "@/src/stores/useAuthStore";
 import { FORM_MAX_WIDTH } from "@/src/styles/Layout";
 import TermsConsentBottomSheet, {
   type TermsConsentBottomSheetRef,
 } from "@/src/components/auth/TermsConsentBottomSheet";
-
-const { SharedStore } = NativeModules;
 
 const KAKAO_REST_API_KEY = process.env.EXPO_PUBLIC_KAKAO_REST_API_KEY!;
 const KAKAO_REDIRECT_URI = process.env.EXPO_PUBLIC_KAKAO_REDIRECT_URI!;
@@ -63,19 +68,20 @@ export default function Login() {
   const canvasScale = canvasWidth / 375;
   const canvasHeight = 812 * canvasScale;
   const termsConsentSheetRef = useRef<TermsConsentBottomSheetRef>(null);
-  const pendingLoginProviderRef = useRef<"kakao" | "apple" | null>(null);
+  const agreementSheetPresentedRef = useRef(false);
+  const agreementSubmissionRef = useRef(false);
   const [isAppleLoginAvailable, setIsAppleLoginAvailable] = useState(false);
   const [isAppleLoginPending, setIsAppleLoginPending] = useState(false);
-  const { returnTo, intent } = useLocalSearchParams<{
+  const [isKakaoLoginPending, setIsKakaoLoginPending] = useState(false);
+  const [isAgreementSubmitting, setIsAgreementSubmitting] = useState(false);
+  const pendingAgreement = useAuthStore((state) => state.pendingAgreement);
+  const { returnTo } = useLocalSearchParams<{
     returnTo?: string | string[];
-    intent?: string | string[];
   }>();
 
   const nextReturnTo = Array.isArray(returnTo)
     ? returnTo[0]
     : (returnTo ?? "/");
-  const nextIntent = Array.isArray(intent) ? intent[0] : (intent ?? "");
-
   useEffect(() => {
     if (Platform.OS !== "ios") return;
 
@@ -83,6 +89,35 @@ export default function Login() {
       .then(setIsAppleLoginAvailable)
       .catch(() => setIsAppleLoginAvailable(false));
   }, []);
+
+  useEffect(() => {
+    if (!pendingAgreement) {
+      agreementSheetPresentedRef.current = false;
+      return;
+    }
+
+    if (agreementSheetPresentedRef.current) return;
+    agreementSheetPresentedRef.current = true;
+    termsConsentSheetRef.current?.open();
+  }, [pendingAgreement]);
+
+  const finishSocialLogin = async (result: SocialLoginResult) => {
+    if (result.status === "LOGIN_SUCCESS") {
+      await useAuthStore.getState().setAuth({
+        token: result.accessToken,
+        email: result.email,
+        nickname: result.nickname,
+      });
+      router.replace(resolveReturnTo(nextReturnTo));
+      return;
+    }
+
+    useAuthStore.getState().setPendingAgreement({
+      temporaryToken: result.accessToken,
+      email: result.email,
+      nickname: result.nickname,
+    });
+  };
 
   const handleAppleLogin = async () => {
     if (isAppleLoginPending) return;
@@ -103,7 +138,7 @@ export default function Login() {
         throw new Error("Apple identity token을 받지 못했습니다.");
       }
 
-      const session = await loginWithApple({
+      const result = await loginWithApple({
         identityToken: credential.identityToken,
         authorizationCode: credential.authorizationCode,
         nonce,
@@ -114,12 +149,21 @@ export default function Login() {
           : null,
       });
 
-      await useAuthStore.getState().setAuth(session);
-      router.replace(resolveReturnTo(nextReturnTo));
-    } catch (error: any) {
-      if (error?.code === "ERR_REQUEST_CANCELED") return;
+      await finishSocialLogin(result);
+    } catch (error) {
+      if (
+        typeof error === "object" &&
+        error !== null &&
+        "code" in error &&
+        error.code === "ERR_REQUEST_CANCELED"
+      ) {
+        return;
+      }
 
-      console.warn("[Apple Login] error:", error?.message ?? error);
+      console.warn(
+        "[Apple Login] error:",
+        error instanceof Error ? error.message : error,
+      );
       Alert.alert(
         "Apple 로그인 실패",
         "로그인을 완료하지 못했어요. 잠시 후 다시 시도해 주세요.",
@@ -130,6 +174,10 @@ export default function Login() {
   };
 
   const handleKakaoLogin = async () => {
+    if (isKakaoLoginPending) return;
+
+    setIsKakaoLoginPending(true);
+
     try {
       await WebBrowser.warmUpAsync();
 
@@ -139,61 +187,79 @@ export default function Login() {
       );
 
       if (result.type === "success" && result.url) {
-        const parsed = new URL(result.url);
-        const token = parsed.searchParams.get("token") ?? "";
-        const email = parsed.searchParams.get("email") ?? "";
-        const nickname = parsed.searchParams.get("nickname") ?? "";
-
-        SharedStore?.setAccessToken?.(token);
-
-        // ✅ 콜백 라우트로 직접 이동 (슬래시 1개여도 OK)
-        router.replace({
-          pathname: "/oauth/kakao",
-          params: {
-            token,
-            email,
-            nickname,
-            returnTo: nextReturnTo,
-            intent: nextIntent,
-          },
-        });
+        const loginResult = parseKakaoCallbackUrl(result.url);
+        await finishSocialLogin(loginResult);
       } else if (result.type === "cancel") {
         console.log("⚠️ 사용자가 로그인 취소");
       } else {
         console.log("❌ 로그인 실패 또는 중단");
       }
-    } catch (e) {
-      console.warn("[KAKAO][AuthSession] error:", e);
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "로그인을 완료하지 못했어요. 잠시 후 다시 시도해 주세요.";
+      console.warn("[KAKAO][AuthSession] error:", message);
+      Alert.alert("카카오 로그인 실패", message);
     } finally {
       await WebBrowser.coolDownAsync();
+      setIsKakaoLoginPending(false);
     }
   };
 
-  const requestSocialLogin = (provider: "kakao" | "apple") => {
-    if (provider === "apple" && isAppleLoginPending) return;
+  const handleTermsConfirmed = async () => {
+    const pending = useAuthStore.getState().pendingAgreement;
+    if (!pending || agreementSubmissionRef.current) return;
 
-    pendingLoginProviderRef.current = provider;
-    termsConsentSheetRef.current?.open();
-  };
+    agreementSubmissionRef.current = true;
+    setIsAgreementSubmitting(true);
 
-  const handleTermsConfirmed = () => {
-    const provider = pendingLoginProviderRef.current;
-    pendingLoginProviderRef.current = null;
+    try {
+      const result = await submitRequiredAgreements(pending.temporaryToken);
 
-    if (provider === "apple") {
-      void handleAppleLogin();
-      return;
-    }
+      await useAuthStore.getState().setAuth({
+        token: result.accessToken,
+        email: result.email ?? pending.email,
+        nickname: result.nickname ?? pending.nickname,
+      });
 
-    if (provider === "kakao") {
-      void handleKakaoLogin();
+      termsConsentSheetRef.current?.close();
+      router.replace(resolveReturnTo(nextReturnTo));
+    } catch (error) {
+      const status = isAxiosError(error) ? error.response?.status : undefined;
+
+      if (status === 401) {
+        useAuthStore.getState().clearPendingAgreement();
+        termsConsentSheetRef.current?.close();
+        Alert.alert(
+          "다시 로그인이 필요해요",
+          "약관 동의 시간이 만료됐어요. 소셜 로그인을 다시 진행해 주세요.",
+        );
+      } else {
+        console.warn(
+          "[Agreements] error:",
+          error instanceof Error ? error.message : error,
+        );
+        Alert.alert(
+          "약관 동의 실패",
+          "동의 내용을 저장하지 못했어요. 잠시 후 다시 시도해 주세요.",
+        );
+      }
+    } finally {
+      agreementSubmissionRef.current = false;
+      setIsAgreementSubmitting(false);
     }
   };
 
   const renderKakaoLoginButton = (label = "카카오로 계속하기") => (
     <Pressable
-      style={styles.kakaoLoginButton}
-      onPress={() => requestSocialLogin("kakao")}
+      disabled={isKakaoLoginPending || isAppleLoginPending}
+      style={[
+        styles.kakaoLoginButton,
+        (isKakaoLoginPending || isAppleLoginPending) &&
+          styles.loginButtonPending,
+      ]}
+      onPress={() => void handleKakaoLogin()}
     >
       <View pointerEvents="none" style={styles.signUpOverlay}>
         <Image
@@ -244,13 +310,13 @@ export default function Login() {
               {renderKakaoLoginButton()}
               {isAppleLoginAvailable ? (
                 <Pressable
-                  disabled={isAppleLoginPending}
+                  disabled={isAppleLoginPending || isKakaoLoginPending}
                   style={({ pressed }) => [
                     styles.appleLoginButton,
-                    (pressed || isAppleLoginPending) &&
+                    (pressed || isAppleLoginPending || isKakaoLoginPending) &&
                       styles.loginButtonPending,
                   ]}
-                  onPress={() => requestSocialLogin("apple")}
+                  onPress={() => void handleAppleLogin()}
                 >
                   <Image
                     style={styles.appleIcon}
@@ -278,9 +344,13 @@ export default function Login() {
         ref={termsConsentSheetRef}
         termsUrl={TERMS_URL}
         privacyPolicyUrl={PRIVACY_POLICY_URL}
-        onConfirm={handleTermsConfirmed}
+        isSubmitting={isAgreementSubmitting}
+        onConfirm={() => void handleTermsConfirmed()}
         onDismiss={() => {
-          pendingLoginProviderRef.current = null;
+          agreementSheetPresentedRef.current = false;
+          if (!useAuthStore.getState().token) {
+            useAuthStore.getState().clearPendingAgreement();
+          }
         }}
       />
     </View>

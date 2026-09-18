@@ -3,10 +3,17 @@ import { create } from "zustand";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { NativeModules } from "react-native";
 
+export type PendingAgreement = {
+  temporaryToken: string;
+  email?: string;
+  nickname?: string;
+};
+
 type AuthState = {
   token: string | null;
   email: string | null;
   nickname: string | null;
+  pendingAgreement: PendingAgreement | null;
 
   hasHydrated: boolean;
 
@@ -15,14 +22,17 @@ type AuthState = {
     email?: string;
     nickname?: string;
   }) => Promise<void>;
+  setPendingAgreement: (pending: PendingAgreement) => void;
+  clearPendingAgreement: () => void;
   clearAuth: () => Promise<void>;
   hydrate: () => Promise<void>;
 };
 
-export const useAuthStore = create<AuthState>((set, get) => ({
+export const useAuthStore = create<AuthState>((set) => ({
   token: null,
   email: null,
   nickname: null,
+  pendingAgreement: null,
 
   hasHydrated: false,
 
@@ -32,13 +42,28 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       JSON.stringify({ token, email, nickname }),
     );
     NativeModules.SharedStore?.setAccessToken?.(token);
-    set({ token, email: email ?? null, nickname: nickname ?? null });
+    set({
+      token,
+      email: email ?? null,
+      nickname: nickname ?? null,
+      pendingAgreement: null,
+    });
   },
+
+  setPendingAgreement: (pendingAgreement) => set({ pendingAgreement }),
+
+  clearPendingAgreement: () => set({ pendingAgreement: null }),
 
   clearAuth: async () => {
     await AsyncStorage.removeItem("auth");
     NativeModules.SharedStore?.clearAccessToken?.();
-    set({ token: null, email: null, nickname: null, hasHydrated: true });
+    set({
+      token: null,
+      email: null,
+      nickname: null,
+      pendingAgreement: null,
+      hasHydrated: true,
+    });
   },
 
   hydrate: async () => {

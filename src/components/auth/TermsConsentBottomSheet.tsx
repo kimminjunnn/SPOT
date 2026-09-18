@@ -35,6 +35,7 @@ type TermsConsentBottomSheetProps = {
   privacyPolicyUrl: string;
   onConfirm: () => void;
   onDismiss?: () => void;
+  isSubmitting?: boolean;
 };
 
 const arrowRightIcon = require("@/assets/images/terms-arrow-right.png");
@@ -55,9 +56,18 @@ function TermsCheckbox({ checked }: { checked: boolean }) {
 const TermsConsentBottomSheet = forwardRef<
   TermsConsentBottomSheetRef,
   TermsConsentBottomSheetProps
->(({ termsUrl, privacyPolicyUrl, onConfirm, onDismiss }, ref) => {
+>(
+  (
+    {
+      termsUrl,
+      privacyPolicyUrl,
+      onConfirm,
+      onDismiss,
+      isSubmitting = false,
+    },
+    ref,
+  ) => {
   const sheetRef = useRef<BottomSheetModal>(null);
-  const shouldConfirmRef = useRef(false);
   const { width: windowWidth } = useWindowDimensions();
   const sheetWidth = Math.min(windowWidth, FORM_MAX_WIDTH);
   const sheetScale = sheetWidth / 375;
@@ -74,7 +84,6 @@ const TermsConsentBottomSheet = forwardRef<
 
   useImperativeHandle(ref, () => ({
     open: () => {
-      shouldConfirmRef.current = false;
       reset();
       sheetRef.current?.present();
     },
@@ -82,28 +91,20 @@ const TermsConsentBottomSheet = forwardRef<
   }));
 
   const handleToggleAll = () => {
+    if (isSubmitting) return;
+
     const next = !allAgreed;
     setTermsAgreed(next);
     setPrivacyAgreed(next);
   };
 
   const handleConfirm = () => {
-    if (!allAgreed) return;
-
-    shouldConfirmRef.current = true;
-    sheetRef.current?.dismiss();
+    if (!allAgreed || isSubmitting) return;
+    onConfirm();
   };
 
   const handleDismiss = () => {
-    const shouldConfirm = shouldConfirmRef.current;
-    shouldConfirmRef.current = false;
     reset();
-
-    if (shouldConfirm) {
-      onConfirm();
-      return;
-    }
-
     onDismiss?.();
   };
 
@@ -114,17 +115,17 @@ const TermsConsentBottomSheet = forwardRef<
         appearsOnIndex={0}
         disappearsOnIndex={-1}
         opacity={0.43}
-        pressBehavior="close"
+        pressBehavior={isSubmitting ? "none" : "close"}
       />
     ),
-    [],
+    [isSubmitting],
   );
 
   return (
     <BottomSheetModal
       ref={sheetRef}
       enableDynamicSizing
-      enablePanDownToClose
+      enablePanDownToClose={!isSubmitting}
       backdropComponent={renderBackdrop}
       backgroundStyle={[
         styles.sheetBackground,
@@ -153,9 +154,13 @@ const TermsConsentBottomSheet = forwardRef<
             <Pressable
               style={styles.allAgreementButton}
               onPress={handleToggleAll}
+              disabled={isSubmitting}
               accessibilityRole="checkbox"
               accessibilityLabel="약관 전체 동의하기"
-              accessibilityState={{ checked: allAgreed }}
+              accessibilityState={{
+                checked: allAgreed,
+                disabled: isSubmitting,
+              }}
             >
               <TermsCheckbox checked={allAgreed} />
               <Text style={styles.allAgreementText}>약관 전체 동의하기</Text>
@@ -167,9 +172,13 @@ const TermsConsentBottomSheet = forwardRef<
               <Pressable
                 style={styles.agreementCheckButton}
                 onPress={() => setTermsAgreed((current) => !current)}
+                disabled={isSubmitting}
                 accessibilityRole="checkbox"
                 accessibilityLabel="SPOT 이용약관 동의 필수"
-                accessibilityState={{ checked: termsAgreed }}
+                accessibilityState={{
+                  checked: termsAgreed,
+                  disabled: isSubmitting,
+                }}
               >
                 <TermsCheckbox checked={termsAgreed} />
                 <Text style={styles.agreementText}>
@@ -190,9 +199,13 @@ const TermsConsentBottomSheet = forwardRef<
               <Pressable
                 style={styles.agreementCheckButton}
                 onPress={() => setPrivacyAgreed((current) => !current)}
+                disabled={isSubmitting}
                 accessibilityRole="checkbox"
                 accessibilityLabel="SPOT 개인정보 수집 이용 동의 필수"
-                accessibilityState={{ checked: privacyAgreed }}
+                accessibilityState={{
+                  checked: privacyAgreed,
+                  disabled: isSubmitting,
+                }}
               >
                 <TermsCheckbox checked={privacyAgreed} />
                 <Text style={styles.agreementText}>
@@ -212,10 +225,10 @@ const TermsConsentBottomSheet = forwardRef<
 
           <View style={styles.confirmWrapper}>
             <SpotButton
-              label="확인"
+              label={isSubmitting ? "동의 처리 중..." : "확인"}
               size="large"
               fullWidth
-              disabled={!allAgreed}
+              disabled={!allAgreed || isSubmitting}
               onPress={handleConfirm}
               style={styles.confirmButton}
             />
@@ -224,7 +237,8 @@ const TermsConsentBottomSheet = forwardRef<
       </BottomSheetView>
     </BottomSheetModal>
   );
-});
+  },
+);
 
 TermsConsentBottomSheet.displayName = "TermsConsentBottomSheet";
 
