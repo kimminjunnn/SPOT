@@ -23,8 +23,8 @@ const authApi8080 = axios.create({
 });
 
 export const REQUIRED_AGREEMENTS = [
-  { type: "TERMS", version: "v1", required: true, agreed: true },
-  { type: "PRIVACY", version: "v1", required: true, agreed: true },
+  { type: "TERMS", version: "v1" },
+  { type: "PRIVACY", version: "v1" },
 ] as const;
 
 /**
