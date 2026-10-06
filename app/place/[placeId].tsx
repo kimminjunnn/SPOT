@@ -11,6 +11,7 @@ import {
   ActivityIndicator,
   Pressable,
   useWindowDimensions,
+  Platform,
 } from "react-native";
 import { useState, useRef, useEffect, useMemo } from "react";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -46,6 +47,7 @@ import { usePlaceMoreStore } from "@/src/stores/usePlaceMoreStore";
 import { useLocationStore } from "@/src/stores/useLocationStore";
 
 import { openNaverMap } from "@/src/utils/openNaverMap";
+import { openAppleMap } from "@/src/utils/openAppleMap";
 import { calculateDistanceMeters } from "@/src/utils/distance";
 import { CommentCard } from "@/src/components/comment/CommentCard";
 import SavedInfoCard from "@/src/components/place/SavedInfoCard";
@@ -380,6 +382,15 @@ export default function PlaceDetailScreen() {
     await openNaverMap(display.name);
   };
 
+  const handleOpenAppleMap = async () => {
+    await openAppleMap({
+      name: display.name,
+      address: display.address,
+      lat: mapLat ?? undefined,
+      lng: mapLng ?? undefined,
+    });
+  };
+
   return (
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
@@ -490,6 +501,16 @@ export default function PlaceDetailScreen() {
             style={{ marginHorizontal: 16 }}
             onPress={handleOpenNaverMap}
           />
+
+          {Platform.OS === "ios" && (
+            <SpotButton
+              label="Apple 지도로 열기"
+              variant="primary"
+              size="large"
+              style={{ marginHorizontal: 16, marginTop: 8 }}
+              onPress={handleOpenAppleMap}
+            />
+          )}
 
           <SavedInfoCard savers={display.savers} />
 
