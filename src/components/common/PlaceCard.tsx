@@ -10,11 +10,14 @@ import {
   Modal,
   StyleProp,
   ViewStyle,
+  Platform,
+  GestureResponderEvent,
 } from "react-native";
 import { TextStyles } from "@/src/styles/TextStyles";
 import { Colors } from "@/src/styles/Colors";
 
 import { openNaverMap } from "@/src/utils/openNaverMap";
+import { openAppleMap } from "@/src/utils/openAppleMap";
 import { getCategoryLabel } from "@/src/utils/categoryLabel";
 import type { PlaceCardSavedUser } from "@/src/lib/mappers/placeCardSavers";
 
@@ -22,6 +25,8 @@ interface PlaceCardProps {
   name: string;
   category: string;
   address: string;
+  lat?: number;
+  lng?: number;
   images: any[]; // require로 넣으니까 any로!
   savedUsers?: PlaceCardSavedUser[];
   savedCount?: number;
@@ -69,6 +74,8 @@ export default function PlaceCard({
   name,
   category,
   address,
+  lat,
+  lng,
   images,
   savedUsers,
   savedCount,
@@ -90,10 +97,17 @@ export default function PlaceCard({
     setViewerVisible(true);
   };
 
-  const handlePressNaverMapButton = async () => {
-    await openNaverMap(name);
-    console.log("clicked");
+  const handlePressNaverMapButton = (event: GestureResponderEvent) => {
+    event.stopPropagation();
+    void openNaverMap(name);
   };
+
+  const handlePressAppleMapButton = (event: GestureResponderEvent) => {
+    event.stopPropagation();
+    void openAppleMap({ name, address, lat, lng });
+  };
+
+  const showAppleMapButton = Platform.OS === "ios" && showDirectionButton;
 
   const savedUserImages = (savedUsers ?? [])
     .slice(0, 3)
@@ -193,8 +207,7 @@ export default function PlaceCard({
         ))}
       </ScrollView>
 
-      {/* 저장한 사람들 + 네이버 지도 버튼 */}
-      <View style={styles.bottomRow}>
+      <View style={[styles.bottomRow, showAppleMapButton && styles.iosBottomRow]}>
         <View style={styles.savedInfo}>
           {actualSavedCount > 0 && (
             <View style={styles.avatarGroup}>
@@ -213,16 +226,38 @@ export default function PlaceCard({
         </View>
 
         {showDirectionButton && (
-          <Pressable
-            style={styles.NaverMapButton}
-            onPress={handlePressNaverMapButton}
-          >
-            <Image
-              source={require("@/assets/images/naver-map-icon.png")}
-              style={styles.NaverMapIcon}
-            />
-            <Text style={TextStyles.Medium12}>네이버 지도 길찾기</Text>
-          </Pressable>
+          <View style={styles.mapButtons}>
+            {showAppleMapButton && (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`${name}, Apple 지도로 열기`}
+                style={styles.NaverMapButton}
+                onPress={handlePressAppleMapButton}
+              >
+                <Image
+                  source={require("@/assets/images/apple-icon.png")}
+                  style={[styles.NaverMapIcon, styles.appleMapIcon]}
+                />
+                <Text style={TextStyles.Medium12}>Apple 지도로 열기</Text>
+              </Pressable>
+            )}
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`${name}, ${Platform.OS === "ios" ? "네이버 지도로 열기" : "네이버 지도 길찾기"}`}
+              style={styles.NaverMapButton}
+              onPress={handlePressNaverMapButton}
+            >
+              <Image
+                source={require("@/assets/images/naver-map-icon.png")}
+                style={styles.NaverMapIcon}
+              />
+              <Text style={TextStyles.Medium12}>
+                {Platform.OS === "ios"
+                  ? "네이버 지도로 열기"
+                  : "네이버 지도 길찾기"}
+              </Text>
+            </Pressable>
+          </View>
         )}
       </View>
 
@@ -334,6 +369,21 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: 14,
+  },
+  iosBottomRow: {
+    flexWrap: "wrap",
+    rowGap: 8,
+    columnGap: 8,
+  },
+  mapButtons: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    marginLeft: "auto",
+    gap: 8,
+  },
+  appleMapIcon: {
+    tintColor: Colors.gray_900,
+    resizeMode: "contain",
   },
   savedInfo: {
     flexDirection: "row",

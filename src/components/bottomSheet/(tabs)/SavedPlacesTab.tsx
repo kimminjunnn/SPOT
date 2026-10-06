@@ -230,6 +230,8 @@ export default function SavedPlacesTab() {
               name={p.name}
               category={p.category ?? ""}
               address={p.address}
+              lat={p.lat}
+              lng={p.lng}
               images={
                 p.thumbnails.length > 0
                   ? p.thumbnails.map((u) => ({ uri: u }))

@@ -147,6 +147,8 @@ export default function SearchDetailsBottomSheet({
                 name={p.name}
                 category={category}
                 address={p.address ?? ""}
+                lat={p.lat}
+                lng={p.lng}
                 images={images}
                 savedUsers={saverProps.savedUsers}
                 savedCount={saverProps.savedCount}
