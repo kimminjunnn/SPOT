@@ -81,12 +81,8 @@
 	<key>NSCameraUsageDescription</key>
 	<string>프로필 사진을 찍기 위해 카메라 접근이 필요합니다.</string>
 
-	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>Allow $(PRODUCT_NAME) to access your location</string>
-	<key>NSLocationAlwaysUsageDescription</key>
-	<string>Allow $(PRODUCT_NAME) to access your location</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>내 위치를 지도에서 표시하기 위해 위치 접근 권한이 필요합니다.</string>
+	<string>현재 위치를 지도에 표시하고, 주변의 가까운 장소를 탐색할 수 있도록 위치 정보를 사용합니다.</string>
 	<key>NSUserActivityTypes</key>
 	<array>
 		<string>$(PRODUCT_BUNDLE_IDENTIFIER).expo.index_route</string>

@@ -43,6 +43,14 @@
       "expo-apple-authentication",
       "expo-notifications",
       [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "현재 위치를 지도에 표시하고, 주변의 가까운 장소를 탐색할 수 있도록 위치 정보를 사용합니다.",
+          "locationAlwaysPermission": false,
+          "locationAlwaysAndWhenInUsePermission": false
+        }
+      ],
+      [
         "react-native-google-mobile-ads",
         {
           "iosAppId": "ca-app-pub-8541783556954989~8526319281"
